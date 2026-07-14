@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Vercel
+.vercel
+
+# Claude Code (config local)
+.claude/
+
+# ArcGIS (arquivos de trava temporários)
+*.lock
+*.sr.lock
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
