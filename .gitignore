@@ -15,6 +15,19 @@ venv/
 *.lock
 *.sr.lock
 
+# Hidrografia: bases de origem grandes demais para o Git.
+# HIDROGRAFIA.dbf tem 243 MB e .shp tem 169 MB — acima do limite de 100 MB
+# do GitHub. A hidrografia_estado.dbf (94 MB) passaria raspando e quebraria
+# no próximo crescimento. O mapa gerado (mapa_interativo.html) já embute a
+# versão filtrada (ordem <= 3, simplificada), então o site funciona sem elas.
+# Para regenerar o mapa com hidrografia, mantenha estes arquivos localmente.
+camadas/HIDROGRAFIA.*
+camadas/hidrografia_estado.*
+camadas/hidrografia_estado_1.*
+
+# Duplicata (erro de digitação) de estado_tocantins
+camadas/esatado_tocantins.*
+
 # Sistema
 .DS_Store
 Thumbs.db
