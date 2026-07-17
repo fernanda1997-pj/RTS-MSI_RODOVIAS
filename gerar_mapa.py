@@ -44,7 +44,31 @@ CLASSE_STATUS_PC = {
 COR_MARCA = '#1E3A72'  # azul-marinho da RTA (extraído do logo)
 
 # Cores por tipo de camada (dados por região)
-COR_REGIAO = '#1E3A72'
+COR_REGIAO = '#1E3A72'   # fallback e cor do símbolo genérico de região
+
+# Uma cor por região. Todas dessaturadas e na mesma faixa de luminosidade
+# (por isso formam família e não competem com as rodovias), mas com matizes
+# bem espaçados (por isso dá para diferenciar uma da outra). São polígonos
+# de contexto desenhados a 35% de opacidade: o contorno é que carrega a cor.
+CORES_REGIAO = {
+    'R1':  '#7391B5',   # azul-acinzentado
+    'R2':  '#74A88E',   # verde-água
+    'R3':  '#A88BB5',   # lilás
+    'R11': '#C49A6C',   # caramelo
+    'R12': '#B57A8A',   # rosa-vinho
+    'R13': '#8A9E6B',   # verde-oliva
+}
+# Se aparecer uma região nova, recebe uma cor daqui de forma estável
+PALETA_REGIAO_EXTRA = ['#6E9BA8', '#B58F7A', '#9A8FB5', '#8FA87E', '#AE8E9E']
+
+
+def cor_regiao(rid):
+    """Cor do polígono de uma região (estável entre execuções)."""
+    if rid in CORES_REGIAO:
+        return CORES_REGIAO[rid]
+    mm = re.match(r'R(\d+)$', rid)
+    i = int(mm.group(1)) if mm else sum(ord(c) for c in rid)
+    return PALETA_REGIAO_EXTRA[i % len(PALETA_REGIAO_EXTRA)]
 # Pontos SRE: nós de referência nos extremos dos trechos. Ficam neutros
 # (miolo branco + anel marinho) para marcar sem competir com as rodovias,
 # que já usam a paleta colorida da situação.
@@ -425,9 +449,19 @@ class PainelControle(MacroElement):
             #gp-painel .gp-base-card input:checked + .gp-base-in .gp-base-lbl { color:#1E3A72; font-weight:700; }
             #gp-painel .gp-base-card input:focus-visible + .gp-base-in { outline:2px solid #1E3A72; outline-offset:2px; }
 
-            /* Nível 1: região */
-            #gp-painel .gp-reg-head { display:flex; align-items:center; gap:8px; padding:7px 6px; margin:1px -6px; border-radius:8px; cursor:pointer; transition:background .15s; }
-            #gp-painel .gp-reg-head:hover { background:rgba(15,23,42,0.05); }
+            /* Nível 1: região. A linha é tingida com a cor da própria região
+               (a mesma do polígono no mapa) e ganha uma barra à esquerda, para
+               casar o nome com o que se vê no mapa sem precisar decorar. */
+            #gp-painel .gp-reg { margin-bottom:2px; }
+            #gp-painel .gp-reg-head { display:flex; align-items:center; gap:8px;
+                padding:7px 6px 7px 10px; margin:1px -6px; border-radius:7px; cursor:pointer;
+                background:color-mix(in srgb, var(--cr) 15%, transparent);
+                box-shadow:inset 3px 0 0 var(--cr);
+                transition:background .15s, box-shadow .15s; }
+            #gp-painel .gp-reg-head:hover { background:color-mix(in srgb, var(--cr) 26%, transparent); }
+            /* Região desligada: a tinta some junto com o resto */
+            #gp-painel .gp-reg.desligada > .gp-reg-head { background:transparent;
+                box-shadow:inset 3px 0 0 #cbd5e1; }
             #gp-painel .gp-chev { flex:0 0 auto; width:11px; color:#1E3A72; transition:transform .2s; }
             #gp-painel .gp-reg.open > .gp-reg-head .gp-chev { transform:rotate(90deg); }
             #gp-painel .gp-reg-nome { flex:1; font-size:13px; font-weight:600; color:#0f172a; }
@@ -620,7 +654,7 @@ class PainelControle(MacroElement):
                     <button type="button" id="gp-limpar-regioes" class="gp-limpar">Desmarcar todas</button>
                 </div>
                 {% for reg in this.regioes %}
-                <div class="gp-reg {% if loop.first %}open{% endif %}" data-reg="{{ reg.id }}">
+                <div class="gp-reg {% if loop.first %}open{% endif %}" data-reg="{{ reg.id }}" style="--cr: {{ reg.cor }}">
                     <div class="gp-reg-head">
                         <svg class="gp-chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         <span class="gp-reg-nome">{{ reg.nome }}</span>
@@ -1156,6 +1190,8 @@ def create_webgis():
             cols = [c for c in gdf.columns if c.lower() != 'geometry']
             popup = folium.GeoJsonPopup(fields=cols, aliases=cols, localize=True) if cols else None
             _, cor, _ = TIPO_META[tipo]
+            if tipo == 'regiao':
+                cor = cor_regiao(rid)   # cada região com a sua cor
 
             if tipo == 'trechos':
                 # Uma camada por SITUAÇÃO: permite ligar/desligar cada classe
@@ -1279,7 +1315,7 @@ def create_webgis():
                 data=gdf, name=nome, popup=popup, style_function=style_fn,
                 marker=marcador
             ).add_to(fg)
-            regioes.setdefault(rid, {})[tipo] = {'fg': fg, 'count': len(gdf)}
+            regioes.setdefault(rid, {})[tipo] = {'fg': fg, 'count': len(gdf), 'cor': cor}
             print(f"  '{nome}' -> {rid} / {tipo} ({len(gdf)} feições)")
 
         except Exception as e:
@@ -1352,11 +1388,13 @@ def create_webgis():
                                   for s in item['situacoes']],
                 })
             else:
-                itens.append({'nome': label, 'layer': item['fg'], 'cor': cor,
+                itens.append({'nome': label, 'layer': item['fg'],
+                              'cor': item.get('cor', cor),   # região traz a sua
                               'forma': forma, 'count': fmt(item['count']),
                               'situacoes': None})
         if itens:
-            regioes_info.append({'id': rid, 'nome': nome_regiao(rid), 'itens': itens})
+            regioes_info.append({'id': rid, 'nome': nome_regiao(rid),
+                                 'cor': cor_regiao(rid), 'itens': itens})
 
     contexto_info = []
     if 'estado' in contexto:
