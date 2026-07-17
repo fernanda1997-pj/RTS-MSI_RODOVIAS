@@ -343,6 +343,52 @@ def ficha_ponto_critico(rid, ponto, info):
     return ''.join(partes)
 
 
+# EPSG métrico para medir comprimento (SIRGAS 2000 / UTM 22S, cobre o TO)
+EPSG_METRICO = 31982
+
+
+def normalizar_extensao(gdf, nome_arquivo):
+    """
+    Unifica o campo de extensão e devolve SEMPRE em quilômetros, na coluna
+    EXT_KM.
+
+    Duas inconsistências reais do inventário são tratadas aqui:
+
+    1. NOME: cada região batizou o campo de um jeito -- 'EXTENSÃO',
+       'EXTENSÃ_1', 'EXTENÇÃO', 'EXT_REAL', 'extenção'.
+
+    2. UNIDADE: a R1 está em METROS e as outras cinco em QUILÔMETROS. Somar
+       tudo sem converter daria ~1.037.000 km de malha em vez de ~6.652 km.
+
+    A unidade é deduzida da GEOMETRIA (compara o atributo com o comprimento
+    real medido), e não do nome do arquivo -- assim uma região nova em metros
+    é tratada certo sozinha.
+    """
+    col = next((c for c in gdf.columns if 'EXT' in str(c).upper()), None)
+    if col is None:
+        return gdf
+    try:
+        valores = pd.to_numeric(gdf[col], errors='coerce')
+        real_km = gdf.to_crs(EPSG_METRICO).geometry.length / 1000
+        razao = (valores / real_km.replace(0, pd.NA)).median()
+        if pd.isna(razao):
+            return gdf
+        if 900 < razao < 1100:          # atributo em metros
+            gdf['EXT_KM'] = (valores / 1000).round(4)
+            print(f"  [UNIDADE] '{nome_arquivo}': '{col}' está em METROS "
+                  f"(razão {razao:.0f}x) -> convertido para km.")
+        elif 0.9 < razao < 1.1:         # já em km
+            gdf['EXT_KM'] = valores.round(4)
+        else:
+            print(f"  [QUALIDADE] '{nome_arquivo}': '{col}' não bate com a "
+                  f"geometria (razão {razao:.2f}x). Extensão não exportada.")
+            return gdf
+        gdf = gdf.drop(columns=[col])
+    except Exception as e:
+        print(f"  Aviso: não normalizei a extensão de '{nome_arquivo}': {e}")
+    return gdf
+
+
 # Camadas oferecidas para download: (arquivo, padrão de busca, rótulo)
 EXPORT_CAMADAS = [
     ('trechos',         'R*_TRECHOS.shp',          'Trechos'),
@@ -380,6 +426,8 @@ def exportar_dados(base_dir, camadas_dir):
                 elif not g.crs:
                     g.set_crs(epsg=4326, inplace=True)
                 g = limpar_atributos(g)
+                if 'TRECHOS' in f.stem.upper():
+                    g = normalizar_extensao(g, f.stem)
                 mm = re.match(r'^(R\d+)_', f.stem.upper())
                 g['REGIAO'] = mm.group(1) if mm else '?'
                 partes.append(g)
@@ -475,6 +523,7 @@ class PainelControle(MacroElement):
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
             #gp-painel { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                position: relative;
                 width: 272px; max-height: 86vh; overflow-y: auto;
                 background: rgba(255,255,255,0.97);
                 -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
@@ -739,9 +788,35 @@ class PainelControle(MacroElement):
                 font-size:10.5px; line-height:1.45; color:#475569; max-height:130px; overflow-y:auto; }
             .leaflet-popup-content { margin:11px 13px; }
             .leaflet-popup-content-wrapper { border-radius:10px; }
+
+            /* ---------- Celular: o painel vira uma gaveta ----------
+               No computador nada muda. No celular ele comeca fechado (para o
+               mapa aparecer), com um botao para abrir e um X para fechar. */
+            .gp-abrir { display:none; width:46px; height:46px; padding:0; border:none;
+                border-radius:13px; background:#1E3A72; color:#fff; cursor:pointer;
+                align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.32); }
+            .gp-abrir svg { width:23px; height:23px; }
+            #gp-painel .gp-fechar { display:none; position:absolute; top:11px; right:11px;
+                width:30px; height:30px; padding:0; border:none; border-radius:9px;
+                background:rgba(15,23,42,0.06); color:#475569; cursor:pointer;
+                align-items:center; justify-content:center; z-index:2; }
+            #gp-painel .gp-fechar svg { width:16px; height:16px; }
+            #gp-painel .gp-fechar:hover { background:rgba(15,23,42,0.12); }
+
+            @media (max-width: 640px) {
+                #gp-painel { width:calc(100vw - 20px); max-width:360px; max-height:78vh;
+                    display:none; animation:none; }
+                #gp-painel.aberto { display:block; }
+                .gp-abrir { display:flex; }
+                .gp-abrir.escondido { display:none; }
+                #gp-painel .gp-fechar { display:flex; }
+            }
         </style>
 
         <div id="gp-painel">
+            <button type="button" class="gp-fechar" aria-label="Fechar painel">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </button>
             <div class="gp-header">
                 {% if this.logo %}
                 <img class="gp-logo-img" src="{{ this.logo }}" alt="RTA Engenheiros Consultores">
@@ -928,6 +1003,31 @@ class PainelControle(MacroElement):
                 });
                 new Painel().addTo(map);
                 L.control.zoom({ position: 'topright' }).addTo(map);
+
+                // --- Gaveta no celular: botão flutuante para abrir o painel ---
+                var painelDiv = document.getElementById('gp-painel');
+                var BotaoAbrir = L.Control.extend({
+                    options: { position: 'topleft' },
+                    onAdd: function() {
+                        var b = L.DomUtil.create('button', 'gp-abrir');
+                        b.type = 'button';
+                        b.setAttribute('aria-label', 'Abrir camadas');
+                        b.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M3 6l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 18l9 4 9-4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+                        L.DomEvent.disableClickPropagation(b);
+                        L.DomEvent.on(b, 'click', function() {
+                            painelDiv.classList.add('aberto');
+                            b.classList.add('escondido');
+                        });
+                        return b;
+                    }
+                });
+                new BotaoAbrir().addTo(map);
+
+                painelDiv.querySelector('.gp-fechar').addEventListener('click', function() {
+                    painelDiv.classList.remove('aberto');
+                    var ab = document.querySelector('.gp-abrir');
+                    if (ab) ab.classList.remove('escondido');
+                });
 
                 // --- MINIMALISTA: a linha é o controle ---------------------
                 // Regra: a seta expande/recolhe; o resto da linha liga/desliga.
