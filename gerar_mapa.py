@@ -6,15 +6,48 @@ from pathlib import Path
 import warnings
 import base64
 import re
+import unicodedata
+import html as _html
 
 warnings.filterwarnings('ignore')  # Ignorar avisos do geopandas
+
+# --------------------------------------------------- pontos críticos
+# Planilha de controle: uma aba por região, com o status de cada ponto mês a
+# mês e o link da foto de cada mês (hospedadas no Drive, permanecem privadas).
+PLANILHA_PC = Path(__file__).parent / 'pontos criticos' / 'Controle Pontos Críticos .xlsx'
+
+# Ordem cronológica do acompanhamento (o ciclo vai de setembro a julho)
+MESES = ['Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Janeiro',
+         'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho']
+
+# Status do ponto -> (rótulo exibido, cor)
+STATUS_PC = {
+    'critico':      ('Crítico',      '#DC2626'),
+    'em execucao':  ('Em execução',  '#F59E0B'),
+    'recuperado':   ('Recuperado',   '#059669'),
+}
+STATUS_PC_OUTRO = ('Sem registro', '#94A3B8')
+
+# Ordem de exibição dos status na árvore (do mais grave ao resolvido)
+ORDEM_STATUS_PC = ['Crítico', 'Em execução', 'Recuperado', 'Sem registro']
+
+# Classe CSS por status, para o halo/brilho do marcador no mapa
+CLASSE_STATUS_PC = {
+    '#DC2626': 'pc-c1',   # crítico (vermelho)
+    '#F59E0B': 'pc-c2',   # em execução (âmbar)
+    '#059669': 'pc-c3',   # recuperado (verde)
+    '#94A3B8': 'pc-c0',   # sem registro (cinza)
+}
 
 # ---------------------------------------------------------------- identidade
 COR_MARCA = '#1E3A72'  # azul-marinho da RTA (extraído do logo)
 
 # Cores por tipo de camada (dados por região)
 COR_REGIAO = '#1E3A72'
-COR_SRE = '#2563eb'
+# Pontos SRE: nós de referência nos extremos dos trechos. Ficam neutros
+# (miolo branco + anel marinho) para marcar sem competir com as rodovias,
+# que já usam a paleta colorida da situação.
+COR_SRE = '#1E3A72'
 COR_CRITICO = '#ef2b2b'
 
 # Cores das camadas de contexto (estaduais)
@@ -50,7 +83,7 @@ HIDRO_SIMPLIFY = 0.0005  # ~55 m
 TIPO_META = {
     'regiao':   ('Formato da Região', COR_REGIAO,  'poli'),
     'trechos':  ('Trechos',           COR_MARCA,   'multi'),
-    'sre':      ('Pontos SRE',        COR_SRE,     'ponto'),
+    'sre':      ('Pontos SRE',        COR_SRE,     'no'),
     'criticos': ('Pontos críticos',   COR_CRITICO, 'crit'),
 }
 TIPO_ORDEM = ['regiao', 'trechos', 'sre', 'criticos']
@@ -101,21 +134,26 @@ def validar_nomenclatura_sre(gdf, nome_camada):
 
 
 def classificar(nome):
-    """Identifica o tipo da camada pelo nome do arquivo."""
-    low = nome.lower()
-    if low in IGNORAR:
+    """
+    Identifica o tipo da camada pelo nome do arquivo.
+
+    Tolerante a acento e a separador: 'Pontos críticos', 'Pontos_Criticos' e
+    'PONTOS CRITICOS' caem todos em 'criticos'.
+    """
+    if nome.lower() in IGNORAR:
         return 'skip'
-    if low.startswith('hidrografia'):      # antes de 'estado' (hidrografia_estado)
+    n = _sem_acento(nome).replace('_', ' ').replace('-', ' ')
+    if n.startswith('hidrografia'):        # antes de 'estado' (hidrografia_estado)
         return 'hidrografia'
-    if 'estado' in low and 'tocantins' in low:
+    if 'estado' in n and 'tocantins' in n:
         return 'estado'
-    if 'pontos críticos' in low or 'pontos criticos' in low:
+    if 'pontos criticos' in n or 'ponto critico' in n:
         return 'criticos'
-    if 'pontos_sre' in low:
+    if 'pontos sre' in n:
         return 'sre'
-    if 'trechos' in low:
+    if 'trechos' in n:
         return 'trechos'
-    if 'regi' in low:
+    if 'regi' in n:
         return 'regiao'
     return None
 
@@ -136,6 +174,138 @@ def ordenar_situacoes(codigos):
 def info_situacao(codigo):
     """Devolve (descrição, cor) de um código de situação do SRE."""
     return SITUACAO_INFO.get(codigo, (DESC_OUTRA, COR_SIT_OUTRA))
+
+
+def _sem_acento(s):
+    return unicodedata.normalize('NFD', str(s or '')).encode('ascii', 'ignore').decode().lower().strip()
+
+
+def _detectar_mes(cabecalho):
+    """
+    Descobre a que mês uma coluna se refere e se é de foto.
+
+    Os cabeçalhos da planilha são inconsistentes entre as abas:
+    'Mapas de Out', 'Mapa de Dezembro', 'MapaAbril', 'mapa Maio', 'Mapa fev'...
+    Atenção ao \\s+ em '^de\\s+': sem ele o 'de' de 'DEzembro' seria removido
+    e o mês se perderia silenciosamente.
+    """
+    n = _sem_acento(cabecalho)
+    eh_foto = n.startswith('mapa')
+    n2 = re.sub(r'^mapas?\s*', '', n)
+    n2 = re.sub(r'^de\s+', '', n2).strip()
+    for m in MESES:
+        if n2.startswith(_sem_acento(m)[:3]):
+            return m, eh_foto
+    return None, eh_foto
+
+
+def _status_pc(valor):
+    """Normaliza o status ('Em execução' e 'Em Execução' são o mesmo)."""
+    return STATUS_PC.get(_sem_acento(valor), STATUS_PC_OUTRO)
+
+
+def carregar_controle_pontos():
+    """
+    Lê a planilha de controle e devolve {(regiao, ponto): dados}.
+    Sem a planilha (ou sem openpyxl), devolve {} e o mapa segue sem as fichas.
+    """
+    if not PLANILHA_PC.exists():
+        print(f"Aviso: planilha não encontrada em {PLANILHA_PC.name}. "
+              f"Os pontos críticos entram sem ficha.")
+        return {}
+    try:
+        import openpyxl
+    except ImportError:
+        print("Aviso: openpyxl não instalado (pip install openpyxl). "
+              "Os pontos críticos entram sem ficha.")
+        return {}
+
+    wb = openpyxl.load_workbook(PLANILHA_PC)
+    dados = {}
+    for ws in wb.worksheets:
+        achado = re.search(r'(\d+)', ws.title)
+        if not achado:
+            continue
+        rid = 'R' + achado.group(1)
+        hdr = [c.value for c in ws[1]]
+
+        # 'Status Final / Situação' na maioria das abas; 'Situação Atual' na R13
+        i_final = next((i for i, h in enumerate(hdr)
+                        if h and ('status final' in _sem_acento(h)
+                                  or 'situacao atual' in _sem_acento(h))), None)
+        col_status, col_foto = {}, {}
+        for i, h in enumerate(hdr):
+            mes, eh_foto = _detectar_mes(h)
+            if mes:
+                (col_foto if eh_foto else col_status)[mes] = i
+
+        for row in ws.iter_rows(min_row=2):
+            if not row[0].value:
+                continue
+            try:
+                ponto = int(float(row[0].value))
+            except (TypeError, ValueError):
+                continue
+            historico = []
+            for mes in MESES:
+                i_s, i_f = col_status.get(mes), col_foto.get(mes)
+                st = row[i_s].value if i_s is not None else None
+                st = str(st).strip() if st and str(st).strip() not in ('·', '', '-') else None
+                foto = row[i_f].hyperlink.target if (i_f is not None and row[i_f].hyperlink) else None
+                if st or foto:
+                    historico.append({'mes': mes, 'status': st, 'foto': foto})
+            dados[(rid, ponto)] = {
+                'rodovia': row[1].value,
+                'trecho': row[2].value,
+                'final': row[i_final].value if i_final is not None else None,
+                'historico': historico,
+            }
+    print(f"Planilha de controle: {len(dados)} pontos, "
+          f"{sum(1 for d in dados.values() for h in d['historico'] if h['foto'])} fotos.")
+    return dados
+
+
+def status_atual(info):
+    """Status mais recente do ponto (último mês com registro)."""
+    for h in reversed(info.get('historico', [])):
+        if h['status']:
+            return h['status']
+    return None
+
+
+def ficha_ponto_critico(rid, ponto, info):
+    """Monta o HTML do popup de um ponto crítico."""
+    e = _html.escape
+    rotulo, cor = _status_pc(status_atual(info))
+    partes = [
+        '<div class="pc">',
+        '<div class="pc-top">',
+        f'<span class="pc-num">Ponto {ponto:03d}</span>',
+        f'<span class="pc-tag" style="background:{cor}">{e(rotulo.upper())}</span>',
+        '</div>',
+    ]
+    sub = ' · '.join(x for x in [str(info.get('rodovia') or '').strip(),
+                                 str(info.get('trecho') or '').strip()] if x)
+    if sub:
+        partes.append(f'<div class="pc-sub">{e(sub)}</div>')
+
+    if info.get('historico'):
+        partes.append('<div class="pc-hist">')
+        for h in info['historico']:
+            r_h, c_h = _status_pc(h['status']) if h['status'] else ('—', '#CBD5E1')
+            # O link abre a ficha do mês em PDF (mapa de localização + fotos),
+            # hospedada no Drive — por isso "Ver mapa", e não "ver foto".
+            foto = (f'<a class="pc-foto" href="{e(h["foto"])}" target="_blank" '
+                    f'rel="noopener">Ver mapa</a>') if h['foto'] else '<span class="pc-nofoto">—</span>'
+            partes.append(
+                f'<div class="pc-linha"><span class="pc-mes">{e(h["mes"][:3])}</span>'
+                f'<span class="pc-st" style="color:{c_h}">{e(r_h)}</span>{foto}</div>')
+        partes.append('</div>')
+
+    if info.get('final'):
+        partes.append(f'<div class="pc-final">{e(str(info["final"]).strip())}</div>')
+    partes.append('</div>')
+    return ''.join(partes)
 
 
 def js_safe(valor):
@@ -188,6 +358,11 @@ class PainelControle(MacroElement):
             #gp-painel .gp-sec:last-child { border-bottom:none; padding-bottom:2px; }
             #gp-painel .gp-sec-h { display:flex; align-items:center; gap:7px; font-size:10.5px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:#64748b; margin-bottom:9px; }
             #gp-painel .gp-sec-h svg { width:14px; height:14px; flex:0 0 auto; color:#1E3A72; }
+            #gp-painel .gp-limpar { margin-left:auto; font-family:inherit; font-size:9px; font-weight:600;
+                letter-spacing:0.02em; text-transform:none; color:#64748b; background:transparent;
+                border:1px solid #e2e8f0; border-radius:20px; padding:2px 8px; cursor:pointer;
+                transition:all .15s; }
+            #gp-painel .gp-limpar:hover { color:#1E3A72; border-color:#1E3A72; background:rgba(30,58,114,0.06); }
 
             /* Busca */
             #gp-painel .gp-busca-wrap { position:relative; }
@@ -213,6 +388,13 @@ class PainelControle(MacroElement):
             #gp-painel .gp-res-tag { font-size:8.5px; font-weight:700; color:#fff; background:var(--c);
                 padding:2px 5px; border-radius:4px; letter-spacing:0.03em; flex:0 0 auto; }
             #gp-painel .gp-vazio { font-size:10.5px; color:#94a3b8; padding:8px 7px; text-align:center; }
+            #gp-painel .gp-res-cab { display:flex; align-items:center; gap:8px; padding:3px 7px 5px;
+                font-size:9.5px; font-weight:600; color:#94a3b8; border-bottom:1px solid #f1f5f9; margin-bottom:3px; }
+            #gp-painel .gp-res-cab span { flex:1; }
+            #gp-painel .gp-enquadrar { font-family:inherit; font-size:9px; font-weight:700; color:#1E3A72;
+                background:rgba(30,58,114,0.09); border:none; border-radius:20px; padding:3px 9px;
+                cursor:pointer; transition:background .15s; }
+            #gp-painel .gp-enquadrar:hover { background:rgba(30,58,114,0.20); }
 
             /* Chips de filtro por situação */
             #gp-painel .gp-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:9px; }
@@ -245,7 +427,7 @@ class PainelControle(MacroElement):
             /* Nível 1: região */
             #gp-painel .gp-reg-head { display:flex; align-items:center; gap:8px; padding:7px 6px; margin:1px -6px; border-radius:8px; cursor:pointer; transition:background .15s; }
             #gp-painel .gp-reg-head:hover { background:rgba(15,23,42,0.05); }
-            #gp-painel .gp-chev { flex:0 0 auto; width:11px; color:#94a3b8; transition:transform .2s; }
+            #gp-painel .gp-chev { flex:0 0 auto; width:11px; color:#1E3A72; transition:transform .2s; }
             #gp-painel .gp-reg.open > .gp-reg-head .gp-chev { transform:rotate(90deg); }
             #gp-painel .gp-reg-nome { flex:1; font-size:13px; font-weight:600; color:#0f172a; }
             #gp-painel .gp-reg-body { max-height:0; overflow:hidden; transition:max-height .3s ease; padding-left:15px; }
@@ -257,17 +439,16 @@ class PainelControle(MacroElement):
             #gp-painel .gp-sub-lbl { flex:1; font-size:12.5px; color:#475569; }
             #gp-painel .gp-tre-head { display:flex; align-items:center; gap:9px; padding:5px 6px; margin:1px -6px; border-radius:7px; cursor:pointer; transition:background .15s; }
             #gp-painel .gp-tre-head:hover { background:rgba(15,23,42,0.04); }
-            #gp-painel .gp-chev2 { flex:0 0 auto; width:9px; color:#cbd5e1; transition:transform .2s; }
+            #gp-painel .gp-chev2 { flex:0 0 auto; width:9px; color:#1E3A72; transition:transform .2s; }
             #gp-painel .gp-tre.open > .gp-tre-head .gp-chev2 { transform:rotate(90deg); }
-            #gp-painel .gp-tre.open > .gp-tre-head .gp-chev2 { color:#94a3b8; }
             #gp-painel .gp-tre-body { max-height:0; overflow:hidden; transition:max-height .25s ease; padding-left:14px; }
             #gp-painel .gp-tre.open > .gp-tre-body { max-height:440px; }
 
             /* Nível 3: situação */
             #gp-painel .gp-sit-head { display:flex; align-items:center; gap:8px; padding:3px 6px; margin:1px -6px; border-radius:6px; cursor:pointer; transition:background .15s; }
             #gp-painel .gp-sit-head:hover { background:rgba(15,23,42,0.04); }
-            #gp-painel .gp-chev3 { flex:0 0 auto; width:8px; color:#cbd5e1; transition:transform .2s; }
-            #gp-painel .gp-sit.open > .gp-sit-head .gp-chev3 { transform:rotate(90deg); color:#94a3b8; }
+            #gp-painel .gp-chev3 { flex:0 0 auto; width:8px; color:#1E3A72; opacity:0.75; transition:transform .2s, opacity .2s; }
+            #gp-painel .gp-sit.open > .gp-sit-head .gp-chev3 { transform:rotate(90deg); opacity:1; }
             #gp-painel .gp-sit-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; padding:1px 0; }
             #gp-painel .gp-sit-cod { font-size:10.5px; font-weight:700; color:#475569; letter-spacing:0.05em;
                 font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; }
@@ -284,35 +465,119 @@ class PainelControle(MacroElement):
             #gp-painel .gp-sre:hover { background:rgba(30,58,114,0.09); color:#1E3A72; }
             #gp-painel .gp-sre::before { content:''; width:4px; height:4px; border-radius:50%; background:currentColor; opacity:0.5; flex:0 0 auto; }
 
-            #gp-painel .gp-switch { position:relative; display:inline-block; width:34px; height:20px; flex:0 0 auto; }
-            #gp-painel .gp-switch input { opacity:0; width:0; height:0; }
-            #gp-painel .gp-slider { position:absolute; inset:0; background:#cbd5e1; border-radius:20px; transition:.2s; cursor:pointer; }
-            #gp-painel .gp-slider::before { content:''; position:absolute; width:16px; height:16px; left:2px; top:2px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
-            #gp-painel .gp-switch input:checked + .gp-slider { background:#1E3A72; }
-            #gp-painel .gp-switch input:checked + .gp-slider::before { transform:translateX(14px); }
-            #gp-painel .gp-switch.sm { width:30px; height:18px; }
-            #gp-painel .gp-switch.sm .gp-slider::before { width:14px; height:14px; }
-            #gp-painel .gp-switch.sm input:checked + .gp-slider::before { transform:translateX(12px); }
-            #gp-painel .gp-switch.xs { width:26px; height:15px; }
-            #gp-painel .gp-switch.xs .gp-slider::before { width:11px; height:11px; }
-            #gp-painel .gp-switch.xs input:checked + .gp-slider::before { transform:translateX(11px); }
+            /* MINIMALISTA: a linha é o controle. Não há interruptores — os
+               <input> continuam existindo (toda a lógica de camadas depende
+               deles), mas invisíveis. O estado se lê pela própria linha. */
+            #gp-painel .gp-switch { display:none; }
+            #gp-painel input[type="checkbox"] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 
-            #gp-painel .gp-cnt { font-variant-numeric:tabular-nums; font-weight:700; color:#0f172a; font-size:11px; background:rgba(15,23,42,0.06); padding:1px 8px; border-radius:20px; }
-            #gp-painel .gp-cnt.xs { font-size:10px; padding:1px 6px; font-weight:600; color:#475569; }
+            #gp-painel .gp-sub-item, #gp-painel .gp-tre-head, #gp-painel .gp-sit-head { cursor:pointer; }
+            #gp-painel .off { opacity:0.38; }
+            #gp-painel .off .gp-sub-lbl, #gp-painel .off .gp-sit-cod {
+                text-decoration:line-through; text-decoration-color:#94a3b8; }
+            #gp-painel .off .sw { filter:grayscale(1); }
 
+            #gp-painel .gp-olho { width:11px; height:11px; flex:0 0 auto; color:#94a3b8;
+                opacity:0; transition:opacity .12s; }
+            #gp-painel .gp-reg-head:hover .gp-olho, #gp-painel .gp-sub-item:hover .gp-olho,
+            #gp-painel .gp-tre-head:hover .gp-olho, #gp-painel .gp-sit-head:hover .gp-olho { opacity:1; }
+            #gp-painel .off .gp-olho, #gp-painel .gp-reg.desligada .gp-olho { opacity:1; }
+            #gp-painel .gp-olho .o-off { display:none; }
+            #gp-painel .off .gp-olho .o-on, #gp-painel .gp-reg.desligada > .gp-reg-head .gp-olho .o-on { display:none; }
+            #gp-painel .off .gp-olho .o-off, #gp-painel .gp-reg.desligada > .gp-reg-head .gp-olho .o-off { display:block; }
+            #gp-painel .gp-olho:hover { color:#1E3A72; }
+
+            /* Contadores em texto puro (a pílula cinza saiu com o redesenho),
+               mas em tom escuro o bastante para leitura rápida em tela clara
+               ou por quem tem baixa visão. */
+            #gp-painel .gp-cnt { font-variant-numeric:tabular-nums; font-weight:600; color:#334155;
+                font-size:10px; background:transparent; padding:0; border-radius:0; }
+            #gp-painel .gp-cnt.xs { font-size:9.5px; font-weight:600; color:#475569; }
+
+            /* Região desligada: todo o bloco apaga, deixando claro que as
+               subcamadas foram ocultadas em lote. */
+            #gp-painel .gp-reg.desligada > .gp-reg-body { opacity:0.4; }
+            #gp-painel .gp-reg.desligada > .gp-reg-head .gp-reg-nome { color:#94a3b8; }
+
+            /* Símbolos da legenda. Propositalmente NÃO parecem controles:
+               o polígono é uma forma irregular (e não um quadrado, que
+               lembraria um checkbox ao lado da chave liga/desliga). */
             #gp-painel .sw { flex:0 0 auto; display:inline-block; }
-            #gp-painel .sw.ponto, #gp-painel .sw.crit { width:14px; height:14px; border-radius:50%; background:var(--c); border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,0.18); }
-            #gp-painel .sw.crit { box-shadow:0 0 0 1px rgba(0,0,0,0.12), 0 0 0 4px color-mix(in srgb, var(--c) 22%, transparent); }
+            #gp-painel .sw.ponto, #gp-painel .sw.crit { width:12px; height:12px; border-radius:50%; background:var(--c); border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,0.18); }
+            #gp-painel .sw.crit { box-shadow:0 0 0 1px rgba(0,0,0,0.12), 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+            #gp-painel .sw.no { width:8px; height:8px; border-radius:50%; background:#fff;
+                border:2px solid var(--c); box-shadow:0 0 0 1px rgba(0,0,0,0.10); }
             #gp-painel .sw.linha { width:20px; height:5px; border-radius:3px; background:var(--c); }
             #gp-painel .sw.linha-xs { width:16px; height:4px; border-radius:2px; background:var(--c); }
-            #gp-painel .sw.poli { width:16px; height:16px; border-radius:4px; border:2px solid var(--c); background:color-mix(in srgb, var(--c) 30%, transparent); }
-            #gp-painel .sw.contorno { width:16px; height:16px; border-radius:4px; border:2px dashed var(--c); background:transparent; }
+            #gp-painel .sw.poli { width:16px; height:14px; background:var(--c); opacity:0.5;
+                clip-path:polygon(14% 6%, 76% 0%, 100% 52%, 64% 100%, 20% 90%, 0% 38%); }
+            #gp-painel .sw.contorno { width:16px; height:14px; background:var(--c); opacity:0.65;
+                clip-path:polygon(14% 6%, 76% 0%, 100% 52%, 64% 100%, 20% 90%, 0% 38%,
+                                  6% 42%, 24% 82%, 62% 92%, 92% 52%, 72% 8%, 18% 14%); }
             #gp-painel .sw.multi { width:20px; height:5px; border-radius:3px;
                 background:linear-gradient(90deg,#047857 0 25%,#2563EB 25% 50%,#F59E0B 50% 75%,#B45309 75% 100%); }
 
             /* Acessibilidade: foco visível por teclado */
             #gp-painel input:focus-visible + .gp-dot,
             #gp-painel input:focus-visible + .gp-slider { outline:2px solid #1E3A72; outline-offset:2px; }
+
+            /* --- Brilho dos pontos críticos no mapa ---------------------
+               Halo constante (drop-shadow) para o ponto não sumir sobre o
+               satélite, mais uma pulsação de ~2,4 s que toca sozinha quando a
+               camada é ativada: o Leaflet recria o <path>, e o CSS reinicia a
+               animação. Depois assenta no halo fixo, sem ficar piscando. */
+            .pc-mk { transition: filter .2s ease; }
+            .pc-c1 { filter: drop-shadow(0 0 3px rgba(220,38,38,.95)); animation: pc-surge1 2.4s ease-out 1; }
+            .pc-c2 { filter: drop-shadow(0 0 3px rgba(245,158,11,.95)); animation: pc-surge2 2.4s ease-out 1; }
+            .pc-c3 { filter: drop-shadow(0 0 3px rgba(5,150,105,.95));  animation: pc-surge3 2.4s ease-out 1; }
+            .pc-c0 { filter: drop-shadow(0 0 2px rgba(148,163,184,.9)); }
+            .pc-mk:hover { filter: drop-shadow(0 0 7px rgba(255,255,255,.95)); cursor:pointer; }
+
+            @keyframes pc-surge1 {
+                0%   { filter: drop-shadow(0 0 0 rgba(220,38,38,0)); }
+                18%  { filter: drop-shadow(0 0 11px rgba(220,38,38,1)) drop-shadow(0 0 18px rgba(220,38,38,.75)); }
+                55%  { filter: drop-shadow(0 0 4px rgba(220,38,38,.95)); }
+                75%  { filter: drop-shadow(0 0 9px rgba(220,38,38,1)); }
+                100% { filter: drop-shadow(0 0 3px rgba(220,38,38,.95)); }
+            }
+            @keyframes pc-surge2 {
+                0%   { filter: drop-shadow(0 0 0 rgba(245,158,11,0)); }
+                18%  { filter: drop-shadow(0 0 11px rgba(245,158,11,1)) drop-shadow(0 0 18px rgba(245,158,11,.75)); }
+                55%  { filter: drop-shadow(0 0 4px rgba(245,158,11,.95)); }
+                75%  { filter: drop-shadow(0 0 9px rgba(245,158,11,1)); }
+                100% { filter: drop-shadow(0 0 3px rgba(245,158,11,.95)); }
+            }
+            @keyframes pc-surge3 {
+                0%   { filter: drop-shadow(0 0 0 rgba(5,150,105,0)); }
+                18%  { filter: drop-shadow(0 0 11px rgba(5,150,105,1)) drop-shadow(0 0 18px rgba(5,150,105,.75)); }
+                55%  { filter: drop-shadow(0 0 4px rgba(5,150,105,.95)); }
+                75%  { filter: drop-shadow(0 0 9px rgba(5,150,105,1)); }
+                100% { filter: drop-shadow(0 0 3px rgba(5,150,105,.95)); }
+            }
+            /* Respeita quem pediu menos animação no sistema */
+            @media (prefers-reduced-motion: reduce) {
+                .pc-c1, .pc-c2, .pc-c3 { animation: none; }
+            }
+
+            /* Ficha do ponto crítico (popup) */
+            .pc { font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif; color:#1e293b; min-width:236px; }
+            .pc-top { display:flex; align-items:center; gap:8px; padding-bottom:7px; border-bottom:1px solid #e2e8f0; }
+            .pc-num { flex:1; font-size:13px; font-weight:700; color:#0f172a; }
+            .pc-tag { font-size:8.5px; font-weight:700; color:#fff; padding:3px 7px; border-radius:20px; letter-spacing:0.03em; }
+            .pc-sub { font-size:10.5px; color:#64748b; padding:6px 0 2px; line-height:1.35; }
+            .pc-hist { margin:6px 0 0; border-top:1px solid #f1f5f9; padding-top:5px; }
+            .pc-linha { display:flex; align-items:center; gap:8px; padding:2.5px 0; font-size:11px; }
+            .pc-mes { width:26px; flex:0 0 auto; font-weight:700; color:#94a3b8; font-size:9.5px;
+                text-transform:uppercase; letter-spacing:0.04em; }
+            .pc-st { flex:1; font-weight:600; font-size:10.5px; }
+            .pc-foto { font-size:9.5px; font-weight:600; color:#1E3A72; text-decoration:none;
+                background:rgba(30,58,114,0.08); padding:2px 7px; border-radius:20px; white-space:nowrap; }
+            .pc-foto:hover { background:rgba(30,58,114,0.16); text-decoration:underline; }
+            .pc-nofoto { font-size:9.5px; color:#cbd5e1; padding:2px 7px; }
+            .pc-final { margin-top:7px; padding-top:7px; border-top:1px solid #f1f5f9;
+                font-size:10.5px; line-height:1.45; color:#475569; max-height:130px; overflow-y:auto; }
+            .leaflet-popup-content { margin:11px 13px; }
+            .leaflet-popup-content-wrapper { border-radius:10px; }
         </style>
 
         <div id="gp-painel">
@@ -351,16 +616,18 @@ class PainelControle(MacroElement):
                 <div class="gp-sec-h">
                     <svg viewBox="0 0 24 24" fill="none"><path d="M3 6l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 18l9 4 9-4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
                     Camadas por Região
+                    <button type="button" id="gp-limpar-regioes" class="gp-limpar">Desmarcar todas</button>
                 </div>
                 {% for reg in this.regioes %}
                 <div class="gp-reg {% if loop.first %}open{% endif %}" data-reg="{{ reg.id }}">
                     <div class="gp-reg-head">
                         <svg class="gp-chev" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <label class="gp-switch" onclick="event.stopPropagation()">
-                            <input type="checkbox" data-regiao="{{ reg.id }}" checked>
-                            <span class="gp-slider"></span>
-                        </label>
                         <span class="gp-reg-nome">{{ reg.nome }}</span>
+                        <span class="gp-olho" data-olho-reg="{{ reg.id }}" title="Mostrar/ocultar a região">
+                            <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                            <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                        </span>
+                        <input type="checkbox" data-regiao="{{ reg.id }}" checked>
                     </div>
                     <div class="gp-reg-body">
                         {% for it in reg.itens %}
@@ -368,29 +635,31 @@ class PainelControle(MacroElement):
                         <div class="gp-tre" data-grp="{{ it.grupo }}">
                             <div class="gp-tre-head">
                                 <svg class="gp-chev2" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                <label class="gp-switch sm" onclick="event.stopPropagation()">
-                                    <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" checked>
-                                    <span class="gp-slider"></span>
-                                </label>
-                                <span class="sw multi"></span>
+                                <span class="sw {{ it.forma }}" style="--c: {{ it.cor }}"></span>
                                 <span class="gp-sub-lbl">{{ it.nome }}</span>
                                 <span class="gp-cnt">{{ it.count }}</span>
+                                <span class="gp-olho">
+                                    <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                                    <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                                </span>
+                                <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" checked>
                             </div>
                             <div class="gp-tre-body">
                                 {% for s in it.situacoes %}
                                 <div class="gp-sit">
                                     <div class="gp-sit-head">
                                         <svg class="gp-chev3" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                        <label class="gp-switch xs" onclick="event.stopPropagation()">
-                                            <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-sit="{{ s.codigo }}" data-camada="{{ s.layer.get_name() }}" checked>
-                                            <span class="gp-slider"></span>
-                                        </label>
+                                        <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-sit="{{ s.codigo }}" data-camada="{{ s.layer.get_name() }}" checked>
                                         <span class="sw linha-xs" style="--c: {{ s.cor }}"></span>
                                         <span class="gp-sit-txt">
                                             <span class="gp-sit-cod">{{ s.codigo }}</span>
-                                            <span class="gp-sit-desc">{{ s.desc }}</span>
+                                            {% if s.desc %}<span class="gp-sit-desc">{{ s.desc }}</span>{% endif %}
                                         </span>
                                         <span class="gp-cnt xs">{{ s.count }}</span>
+                                        <span class="gp-olho">
+                                            <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                                            <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                                        </span>
                                     </div>
                                     <div class="gp-sre-body">
                                         {% for sr in s.sres %}
@@ -403,13 +672,14 @@ class PainelControle(MacroElement):
                         </div>
                         {% else %}
                         <div class="gp-sub-item">
-                            <label class="gp-switch sm" onclick="event.stopPropagation()">
-                                <input type="checkbox" data-regiao="{{ reg.id }}" data-camada="{{ it.layer.get_name() }}" checked>
-                                <span class="gp-slider"></span>
-                            </label>
+                            <input type="checkbox" data-regiao="{{ reg.id }}" data-camada="{{ it.layer.get_name() }}" checked>
                             <span class="sw {{ it.forma }}" style="--c: {{ it.cor }}"></span>
                             <span class="gp-sub-lbl">{{ it.nome }}</span>
                             <span class="gp-cnt">{{ it.count }}</span>
+                            <span class="gp-olho">
+                                <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                                <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                            </span>
                         </div>
                         {% endif %}
                         {% endfor %}
@@ -426,13 +696,14 @@ class PainelControle(MacroElement):
                 </div>
                 {% for c in this.contexto %}
                 <div class="gp-sub-item">
-                    <label class="gp-switch sm">
-                        <input type="checkbox" data-camada="{{ c.layer.get_name() }}" {% if c.ativo %}checked{% endif %}>
-                        <span class="gp-slider"></span>
-                    </label>
+                    <input type="checkbox" data-camada="{{ c.layer.get_name() }}" {% if c.ativo %}checked{% endif %}>
                     <span class="sw {{ c.forma }}" style="--c: {{ c.cor }}"></span>
                     <span class="gp-sub-lbl">{{ c.nome }}</span>
                     <span class="gp-cnt">{{ c.count }}</span>
+                    <span class="gp-olho">
+                        <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                        <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                    </span>
                 </div>
                 {% endfor %}
             </div>
@@ -474,16 +745,49 @@ class PainelControle(MacroElement):
                 new Painel().addTo(map);
                 L.control.zoom({ position: 'topright' }).addTo(map);
 
-                // Accordions (região e trechos)
+                // --- MINIMALISTA: a linha é o controle ---------------------
+                // Regra: a seta expande/recolhe; o resto da linha liga/desliga.
+                function alternar(inp) {
+                    if (!inp) return;
+                    inp.checked = !inp.checked;
+                    inp.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                function pintarLinha(inp) {
+                    var linha = inp.closest('.gp-sub-item, .gp-tre-head, .gp-sit-head');
+                    if (linha) linha.classList.toggle('off', !inp.checked);
+                }
+                function pintarTudo() {
+                    document.querySelectorAll('#gp-painel .gp-sub-item input, #gp-painel .gp-tre-head input, #gp-painel .gp-sit-head input')
+                        .forEach(pintarLinha);
+                }
+
+                // Região: clicar na linha expande; o olho liga/desliga a região
                 document.querySelectorAll('#gp-painel .gp-reg-head').forEach(function(h){
                     h.addEventListener('click', function(){ h.parentNode.classList.toggle('open'); });
                 });
-                document.querySelectorAll('#gp-painel .gp-tre-head').forEach(function(h){
-                    h.addEventListener('click', function(e){ e.stopPropagation(); h.parentNode.classList.toggle('open'); });
+                document.querySelectorAll('#gp-painel .gp-olho[data-olho-reg]').forEach(function(o){
+                    o.addEventListener('click', function(e){
+                        e.stopPropagation();
+                        alternar(o.parentNode.querySelector('input[data-regiao]'));
+                    });
                 });
-                document.querySelectorAll('#gp-painel .gp-sit-head').forEach(function(h){
-                    h.addEventListener('click', function(e){ e.stopPropagation(); h.parentNode.classList.toggle('open'); });
+
+                // Setas expandem (sem alternar a camada)
+                document.querySelectorAll('#gp-painel .gp-chev2, #gp-painel .gp-chev3').forEach(function(ch){
+                    ch.addEventListener('click', function(e){
+                        e.stopPropagation();
+                        ch.parentNode.parentNode.classList.toggle('open');
+                    });
                 });
+
+                // Linhas de camada: clique alterna
+                document.querySelectorAll('#gp-painel .gp-sub-item, #gp-painel .gp-tre-head, #gp-painel .gp-sit-head')
+                    .forEach(function(linha){
+                        linha.addEventListener('click', function(e){
+                            e.stopPropagation();
+                            alternar(linha.querySelector('input[type="checkbox"]'));
+                        });
+                    });
 
                 // --- Mapas de fundo ---
                 var bases = { {% for b in this.basemaps %}"{{ b.layer.get_name() }}": {{ b.layer.get_name() }}{% if not loop.last %}, {% endif %}{% endfor %} };
@@ -507,6 +811,13 @@ class PainelControle(MacroElement):
                     else { if (map.hasLayer(lyr)) map.removeLayer(lyr); }
                 }
 
+                // Apaga o bloco da região quando ela está toda desligada
+                function pintarRegiao(rid) {
+                    var mr = document.querySelector('#gp-painel input[data-regiao="'+rid+'"]:not([data-camada]):not([data-grupo])');
+                    var bloco = document.querySelector('#gp-painel .gp-reg[data-reg="'+rid+'"]');
+                    if (mr && bloco) bloco.classList.toggle('desligada', !mr.checked);
+                }
+
                 function sincronizarPais(rid, grp) {
                     if (grp) {
                         var f = document.querySelectorAll('#gp-painel input[data-camada][data-grupo="'+grp+'"]');
@@ -517,8 +828,33 @@ class PainelControle(MacroElement):
                         var fr = document.querySelectorAll('#gp-painel input[data-camada][data-regiao="'+rid+'"]');
                         var mr = document.querySelector('#gp-painel input[data-regiao="'+rid+'"]:not([data-camada]):not([data-grupo])');
                         if (mr) mr.checked = Array.prototype.some.call(fr, function(c){ return c.checked; });
+                        pintarRegiao(rid);
                     }
                 }
+
+                // Botão "Desmarcar todas" / "Marcar todas"
+                // (nome distinto de btnLimpar, que é o "x" da busca)
+                var btnLimparReg = document.getElementById('gp-limpar-regioes');
+                function atualizarBotaoLimpar() {
+                    var todos = document.querySelectorAll('#gp-painel input[data-camada][data-regiao]');
+                    var algum = Array.prototype.some.call(todos, function(c){ return c.checked; });
+                    btnLimparReg.textContent = algum ? 'Desmarcar todas' : 'Marcar todas';
+                    return algum;
+                }
+                btnLimparReg.addEventListener('click', function(){
+                    var ligar = !atualizarBotaoLimpar();   // se nada ligado -> liga tudo
+                    document.querySelectorAll('#gp-painel input[data-camada][data-regiao]').forEach(function(c){
+                        c.checked = ligar; aplicar(c);
+                    });
+                    document.querySelectorAll('#gp-painel input[data-regiao]:not([data-camada])').forEach(function(m){
+                        m.checked = ligar;
+                    });
+                    document.querySelectorAll('#gp-painel .gp-reg').forEach(function(b){
+                        b.classList.toggle('desligada', !ligar);
+                    });
+                    atualizarBotaoLimpar();
+                    setTimeout(sincronizarChips, 0);
+                });
 
                 // Estado inicial: sincroniza o mapa com os interruptores
                 document.querySelectorAll('#gp-painel input[data-camada]').forEach(aplicar);
@@ -542,18 +878,30 @@ class PainelControle(MacroElement):
                     });
                 });
 
-                // Voa até um trecho e abre a ficha dele
+                // Voa até um trecho (GeoJson) ou ponto crítico (marcador) e
+                // abre a ficha dele.
                 function irPara(bstr, fgNome, sre) {
                     var p = bstr.split(',').map(Number);
-                    map.fitBounds([[p[0], p[1]], [p[2], p[3]]], { maxZoom: 15, padding: [50, 50] });
+                    var ponto = (p[0] === p[2] && p[1] === p[3]);   // bounds degenerado = ponto
+                    map.fitBounds([[p[0], p[1]], [p[2], p[3]]],
+                                  { maxZoom: ponto ? 16 : 15, padding: [50, 50] });
                     var fg = camadas[fgNome];
                     if (!fg || !map.hasLayer(fg)) return;
-                    fg.eachLayer(function(gj){
-                        if (!gj.eachLayer) return;
-                        gj.eachLayer(function(l){
-                            if (l.feature && l.feature.properties &&
-                                String(l.feature.properties.SRE) === sre && l.openPopup) {
-                                setTimeout(function(){ l.openPopup(); }, 350);
+                    fg.eachLayer(function(l){
+                        // Ponto crítico: marcador solto -> casa pela coordenada
+                        if (l.getLatLng && !l.eachLayer) {
+                            var ll = l.getLatLng();
+                            if (Math.abs(ll.lat - p[0]) < 1e-5 && Math.abs(ll.lng - p[1]) < 1e-5 && l.openPopup) {
+                                setTimeout(function(){ l.openPopup(); }, 400);
+                            }
+                            return;
+                        }
+                        // Trecho: GeoJson -> casa pelo código SRE
+                        if (!l.eachLayer) return;
+                        l.eachLayer(function(sub){
+                            if (sub.feature && sub.feature.properties &&
+                                String(sub.feature.properties.SRE) === sre && sub.openPopup) {
+                                setTimeout(function(){ sub.openPopup(); }, 350);
                             }
                         });
                     });
@@ -583,9 +931,24 @@ class PainelControle(MacroElement):
                         .normalize('NFD').replace(/[̀-ͯ]/g, '');
                 }
 
+                // Enquadra TODOS os resultados da busca (fly-to)
+                var ultimosAchados = [];
+                function enquadrarResultados() {
+                    if (!ultimosAchados.length) return;
+                    var lats = [], lngs = [];
+                    ultimosAchados.forEach(function(i){
+                        var p = i.b.split(',').map(Number);
+                        lats.push(p[0], p[2]); lngs.push(p[1], p[3]);
+                    });
+                    map.flyToBounds([[Math.min.apply(null, lats), Math.min.apply(null, lngs)],
+                                     [Math.max.apply(null, lats), Math.max.apply(null, lngs)]],
+                                    { padding: [55, 55], maxZoom: 14, duration: 0.8 });
+                }
+
                 function renderResultados(termo) {
                     caixaRes.innerHTML = '';
                     btnLimpar.style.display = termo ? 'block' : 'none';
+                    ultimosAchados = [];
                     if (!termo) return;
                     var q = normalizar(termo);
                     var achados = indice.filter(function(i){
@@ -597,7 +960,19 @@ class PainelControle(MacroElement):
                         caixaRes.innerHTML = '<div class="gp-vazio">Nada encontrado</div>';
                         return;
                     }
+                    ultimosAchados = achados;
                     var total = achados.length;
+
+                    // Cabeçalho: quantos achou + enquadrar todos no mapa
+                    var cab = document.createElement('div');
+                    cab.className = 'gp-res-cab';
+                    cab.innerHTML = '<span>' + total + (total > 1 ? ' resultados' : ' resultado') + '</span>';
+                    var bt = document.createElement('button');
+                    bt.type = 'button'; bt.className = 'gp-enquadrar';
+                    bt.textContent = total > 1 ? 'ver todos no mapa' : 'ver no mapa';
+                    bt.addEventListener('click', enquadrarResultados);
+                    cab.appendChild(bt);
+                    caixaRes.appendChild(cab);
                     achados.slice(0, 40).forEach(function(i){
                         var d = document.createElement('div');
                         d.className = 'gp-res';
@@ -617,6 +992,11 @@ class PainelControle(MacroElement):
                 }
 
                 campoBusca.addEventListener('input', function(){ renderResultados(this.value.trim()); });
+                // Enter = enquadra tudo que foi encontrado (não voa a cada tecla,
+                // o que seria enjoativo enquanto se digita)
+                campoBusca.addEventListener('keydown', function(e){
+                    if (e.key === 'Enter') { e.preventDefault(); enquadrarResultados(); }
+                });
                 btnLimpar.addEventListener('click', function(){
                     campoBusca.value = ''; renderResultados(''); campoBusca.focus();
                 });
@@ -645,8 +1025,17 @@ class PainelControle(MacroElement):
                     });
                 }
                 document.querySelectorAll('#gp-painel input[type="checkbox"]').forEach(function(c){
-                    c.addEventListener('change', function(){ setTimeout(sincronizarChips, 0); });
+                    c.addEventListener('change', function(){
+                        setTimeout(function(){
+                            sincronizarChips(); atualizarBotaoLimpar(); pintarTudo();
+                        }, 0);
+                    });
                 });
+                document.querySelectorAll('#gp-painel .gp-reg').forEach(function(b){
+                    pintarRegiao(b.getAttribute('data-reg'));
+                });
+                atualizarBotaoLimpar();
+                pintarTudo();
 
                 // Nível 1: mestre da região -> liga/desliga tudo da região
                 document.querySelectorAll('#gp-painel input[data-regiao]:not([data-camada]):not([data-grupo])').forEach(function(mst){
@@ -658,6 +1047,7 @@ class PainelControle(MacroElement):
                         document.querySelectorAll('#gp-painel input[data-grupo][data-regiao="'+rid+'"]:not([data-camada])').forEach(function(g){
                             g.checked = on;
                         });
+                        pintarRegiao(rid);   // apaga (ou reacende) o bloco da região
                     });
                 });
             })();
@@ -694,6 +1084,7 @@ def create_webgis():
         tl.add_to(m)
 
     # 2. Ler shapefiles
+    controle = carregar_controle_pontos()
     regioes = {}
     contexto = {}
     bounds = []
@@ -809,13 +1200,80 @@ def create_webgis():
                       f"{', '.join(s['codigo'] + '=' + str(s['count']) for s in situacoes)})")
                 continue
 
-            style_fn = (lambda x, color=cor: {'color': color, 'fillColor': color,
-                                              'weight': 3, 'fillOpacity': 0.35})
+            # ---------------------------------------- pontos críticos
+            # Estrutura espelhando os trechos:
+            #   Pontos críticos > Status > número do ponto (clique = voa)
+            if tipo == 'criticos':
+                col_id = next((c for c in gdf.columns if str(c).lower() == 'id'), None)
+                sem_ficha = 0
+                por_status = {}   # rótulo -> {'cor', 'pontos': [...]}
+                for _, linha in gdf.iterrows():
+                    if linha.geometry is None or linha.geometry.is_empty:
+                        continue
+                    try:
+                        ponto = int(float(linha[col_id])) if col_id else 0
+                    except (TypeError, ValueError):
+                        ponto = 0
+                    info = controle.get((rid, ponto))
+                    if info is None:
+                        sem_ficha += 1
+                        info = {'rodovia': None, 'trecho': None, 'final': None, 'historico': []}
+                    rotulo, cor_pt = _status_pc(status_atual(info))
+                    por_status.setdefault(rotulo, {'cor': cor_pt, 'pontos': []})['pontos'].append(
+                        (ponto, linha.geometry.y, linha.geometry.x, info))
+
+                grupos = []
+                for rotulo in ORDEM_STATUS_PC:
+                    if rotulo not in por_status:
+                        continue
+                    bloco = por_status[rotulo]
+                    cor_pt = bloco['cor']
+                    fg_st = folium.FeatureGroup(name=f'{rid}_criticos_{rotulo}',
+                                                show=True, control=False)
+                    lista = []
+                    for ponto, lat, lon, info in sorted(bloco['pontos'], key=lambda t: t[0]):
+                        folium.CircleMarker(
+                            location=[lat, lon], radius=3.5, color='#ffffff', weight=1.2,
+                            fill_color=cor_pt, fill_opacity=1,
+                            # A classe leva o halo/brilho no CSS. O Leaflet recria
+                            # o <path> ao religar a camada, então a animação de
+                            # entrada toca de novo a cada ativação.
+                            className='pc-mk ' + CLASSE_STATUS_PC.get(cor_pt, 'pc-c0'),
+                            popup=folium.Popup(ficha_ponto_critico(rid, ponto, info), max_width=300),
+                            tooltip=f'Ponto {ponto:03d}',
+                        ).add_to(fg_st)
+                        lista.append({'sre': f'Ponto {ponto:03d}',
+                                      'rod': js_safe(info.get('rodovia')),
+                                      'cid': '',
+                                      'b': f'{lat:.6f},{lon:.6f},{lat:.6f},{lon:.6f}'})
+                    grupos.append({'codigo': rotulo, 'desc': '', 'fg': fg_st,
+                                   'count': len(lista), 'cor': cor_pt, 'sres': lista})
+
+                regioes.setdefault(rid, {})['criticos'] = {'count': len(gdf), 'situacoes': grupos}
+                if sem_ficha:
+                    print(f"  [QUALIDADE] {rid}: {sem_ficha} ponto(s) crítico(s) sem ficha na planilha.")
+                print(f"  '{nome}' -> {rid} / criticos ({len(gdf)} pontos em "
+                      f"{len(grupos)} status: "
+                      f"{', '.join(g['codigo'] + '=' + str(g['count']) for g in grupos)})")
+                continue
+
+            # Atenção: no folium o style_function sobrepõe as opções do
+            # CircleMarker, então o estilo do nó tem que sair daqui.
+            if tipo == 'sre':
+                # Nó discreto: anel marinho fino com miolo branco.
+                style_fn = (lambda x: {'color': COR_SRE, 'fillColor': '#ffffff',
+                                       'weight': 1.1, 'fillOpacity': 1, 'opacity': 0.85})
+                marcador = folium.CircleMarker(radius=2.5)
+            else:
+                style_fn = (lambda x, color=cor: {'color': color, 'fillColor': color,
+                                                  'weight': 3, 'fillOpacity': 0.35})
+                marcador = folium.CircleMarker(radius=6, color=cor, fill_color=cor,
+                                               fill_opacity=0.9, weight=1)
+
             fg = folium.FeatureGroup(name=f'{rid}_{tipo}', show=True, control=False)
             folium.GeoJson(
                 data=gdf, name=nome, popup=popup, style_function=style_fn,
-                marker=folium.CircleMarker(radius=6, color=cor, fill_color=cor,
-                                           fill_opacity=0.9, weight=1)
+                marker=marcador
             ).add_to(fg)
             regioes.setdefault(rid, {})[tipo] = {'fg': fg, 'count': len(gdf)}
             print(f"  '{nome}' -> {rid} / {tipo} ({len(gdf)} feições)")
@@ -839,7 +1297,7 @@ def create_webgis():
             item = regioes[rid].get(tipo)
             if not item:
                 continue
-            if tipo == 'trechos':
+            if item.get('situacoes'):        # trechos e pontos críticos
                 for s in item['situacoes']:
                     s['fg'].add_to(m)
             else:
@@ -871,10 +1329,10 @@ def create_webgis():
             if not item:
                 continue
             label, cor, forma = TIPO_META[tipo]
-            if tipo == 'trechos':
+            if item.get('situacoes'):        # trechos e pontos críticos
                 itens.append({
                     'nome': label, 'cor': cor, 'forma': forma,
-                    'count': fmt(item['count']), 'grupo': f'{rid}-trechos',
+                    'count': fmt(item['count']), 'grupo': f'{rid}-{tipo}',
                     'situacoes': [{'codigo': s['codigo'], 'desc': s['desc'],
                                    'layer': s['fg'], 'cor': s['cor'],
                                    'count': fmt(s['count']), 'sres': s['sres']}
