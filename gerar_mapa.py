@@ -2,6 +2,7 @@ import folium
 from folium.plugins import Fullscreen, MousePosition
 from branca.element import MacroElement, Template
 import geopandas as gpd
+import pandas as pd
 from pathlib import Path
 import warnings
 import base64
@@ -125,9 +126,18 @@ def limpar_atributos(gdf):
     """
     Remove quebras de linha (\\r\\n) e espaços extras dos campos de texto.
     Sem isso, 'PSU' e 'PSU\\r\\n' viram categorias diferentes na legenda.
+
+    Atenção ao teste de tipo: o geopandas 1.1 lê texto como dtype 'str', não
+    'object'. A versão anterior checava 'dtype != object' e por isso pulava
+    TODAS as colunas de texto — a função não limpava nada. Aqui invertemos:
+    limpa tudo que não for número, data ou geometria.
     """
     for col in gdf.columns:
-        if col == 'geometry' or gdf[col].dtype != object:
+        if col == 'geometry' or gdf[col].dtype.name == 'geometry':
+            continue
+        if (pd.api.types.is_numeric_dtype(gdf[col])
+                or pd.api.types.is_datetime64_any_dtype(gdf[col])
+                or pd.api.types.is_bool_dtype(gdf[col])):
             continue
         gdf[col] = (gdf[col].astype(str)
                     .str.replace(r'[\r\n\t]+', ' ', regex=True)
@@ -333,6 +343,107 @@ def ficha_ponto_critico(rid, ponto, info):
     return ''.join(partes)
 
 
+# Camadas oferecidas para download: (arquivo, padrão de busca, rótulo)
+EXPORT_CAMADAS = [
+    ('trechos',         'R*_TRECHOS.shp',          'Trechos'),
+    ('pontos_sre',      'R*_PONTOS_SRE.shp',       'Pontos SRE'),
+    ('regioes',         'R*_REGIÃO.shp',           'Regiões'),
+    ('pontos_criticos', 'R*_Pontos_Criticos.shp',  'Pontos críticos'),
+]
+
+
+def exportar_dados(base_dir, camadas_dir):
+    """
+    Gera os arquivos de download em 'dados/': cada camada em KML (abre no
+    Google Earth) e em Shapefile zipado (abre no ArcGIS/QGIS).
+
+    As regiões vão juntas, com uma coluna REGIAO para filtrar. Os atributos
+    saem LIMPOS (sem o \\r\\n que contamina os shapefiles de origem), então o
+    download entrega um dado melhor que o original.
+    """
+    import zipfile
+    import shutil
+    import pandas as pd
+
+    destino = base_dir / 'dados'
+    destino.mkdir(exist_ok=True)
+    tmp = destino / '_tmp'
+    catalogo = []
+
+    for arq, padrao, rotulo in EXPORT_CAMADAS:
+        partes = []
+        for f in sorted(camadas_dir.glob(padrao)):
+            try:
+                g = gpd.read_file(f)
+                if g.crs and g.crs.to_string() != 'EPSG:4326':
+                    g = g.to_crs(epsg=4326)
+                elif not g.crs:
+                    g.set_crs(epsg=4326, inplace=True)
+                g = limpar_atributos(g)
+                mm = re.match(r'^(R\d+)_', f.stem.upper())
+                g['REGIAO'] = mm.group(1) if mm else '?'
+                partes.append(g)
+            except Exception as e:
+                print(f"  Aviso: não exportei {f.name}: {e}")
+        if not partes:
+            continue
+
+        # Só as colunas presentes em TODAS as regiões. Os shapefiles têm
+        # schemas divergentes (ex.: 'GRUPO4' existe só no R1_REGIÃO). Juntar
+        # tudo geraria colunas com nulo, e o driver KML falha ao escrever um
+        # campo numérico nulo. Um dado para download também deve ter schema
+        # uniforme entre as regiões.
+        comuns = set(partes[0].columns)
+        for p in partes[1:]:
+            comuns &= set(p.columns)
+        fora = set().union(*(set(p.columns) for p in partes)) - comuns
+        if fora:
+            print(f"  Aviso: '{rotulo}' - colunas fora do padrão, não exportadas: "
+                  f"{', '.join(sorted(fora))}")
+        ordem = [c for c in partes[0].columns if c in comuns]
+        partes = [p[ordem] for p in partes]
+
+        g = pd.concat(partes, ignore_index=True)
+
+        try:
+            # O driver KML do GDAL ANEXA a um arquivo existente em vez de
+            # sobrescrever — o que faz a escrita falhar na 2ª feição. Por isso
+            # apagamos antes. (Restos de uma escrita interrompida também
+            # envenenariam a próxima execução.)
+            kml = destino / f'{arq}.kml'
+            if kml.exists():
+                kml.unlink()
+            g.to_file(kml, driver='KML')
+
+            if tmp.exists():
+                shutil.rmtree(tmp)
+            tmp.mkdir()
+            g.to_file(tmp / f'{arq}.shp')
+            zp = destino / f'{arq}_shp.zip'
+            if zp.exists():
+                zp.unlink()
+            with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for p in tmp.iterdir():
+                    zf.write(p, p.name)
+            shutil.rmtree(tmp)
+
+            catalogo.append({
+                'nome': rotulo,
+                'kml': f'dados/{arq}.kml',
+                'shp': f'dados/{arq}_shp.zip',
+                'n': '{:,}'.format(len(g)).replace(',', '.'),
+                'tam_kml': f'{kml.stat().st_size/1048576:.1f} MB',
+                'tam_shp': f'{zp.stat().st_size/1048576:.1f} MB',
+            })
+            print(f"  Download: {rotulo} ({len(g)} feições) -> KML e SHP")
+        except Exception as e:
+            print(f"  Aviso: falhou ao exportar '{rotulo}': {e}")
+
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    return catalogo
+
+
 def js_safe(valor):
     """Texto seguro para embutir dentro de uma string JavaScript."""
     if valor is None:
@@ -348,7 +459,7 @@ class PainelControle(MacroElement):
     """
 
     def __init__(self, basemaps, default_base, regioes, contexto,
-                 filtros_situacao, subtitulo, logo=None):
+                 filtros_situacao, subtitulo, logo=None, downloads=None):
         super().__init__()
         self._name = 'PainelControle'
         self.basemaps = basemaps
@@ -356,6 +467,7 @@ class PainelControle(MacroElement):
         self.regioes = regioes
         self.contexto = contexto
         self.filtros_situacao = filtros_situacao
+        self.downloads = downloads or []
         self.subtitulo = subtitulo
         self.logo = logo
         self._template = Template(u"""
@@ -420,6 +532,20 @@ class PainelControle(MacroElement):
                 background:rgba(30,58,114,0.09); border:none; border-radius:20px; padding:3px 9px;
                 cursor:pointer; transition:background .15s; }
             #gp-painel .gp-enquadrar:hover { background:rgba(30,58,114,0.20); }
+
+            /* Baixar dados */
+            #gp-painel .gp-dl { display:flex; align-items:center; gap:7px; padding:5px 4px; margin:0 -4px;
+                border-radius:6px; transition:background .12s; }
+            #gp-painel .gp-dl:hover { background:rgba(15,23,42,0.04); }
+            #gp-painel .gp-dl-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+            #gp-painel .gp-dl-nome { font-size:11px; font-weight:600; color:#334155; }
+            #gp-painel .gp-dl-n { font-size:8.5px; color:#94a3b8; font-variant-numeric:tabular-nums; }
+            #gp-painel .gp-dl-bt { font-size:8.5px; font-weight:700; letter-spacing:0.04em; color:#1E3A72;
+                background:rgba(30,58,114,0.09); border:none; border-radius:5px; padding:3px 7px;
+                text-decoration:none; transition:background .15s; flex:0 0 auto; }
+            #gp-painel .gp-dl-bt:hover { background:rgba(30,58,114,0.22); }
+            #gp-painel .gp-dl-nota { font-size:9px; color:#94a3b8; line-height:1.45; padding-top:7px;
+                margin-top:5px; border-top:1px solid #f1f5f9; }
 
             /* Chips de filtro por situação */
             #gp-painel .gp-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:9px; }
@@ -761,6 +887,29 @@ class PainelControle(MacroElement):
                     {% endfor %}
                 </div>
             </div>
+
+            {% if this.downloads %}
+            <div class="gp-sec">
+                <div class="gp-sec-h">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Baixar Dados
+                </div>
+                {% for d in this.downloads %}
+                <div class="gp-dl">
+                    <span class="gp-dl-txt">
+                        <span class="gp-dl-nome">{{ d.nome }}</span>
+                        <span class="gp-dl-n">{{ d.n }} feições</span>
+                    </span>
+                    <a class="gp-dl-bt" href="{{ d.kml }}" download title="KML · {{ d.tam_kml }} · abre no Google Earth">KML</a>
+                    <a class="gp-dl-bt" href="{{ d.shp }}" download title="Shapefile zipado · {{ d.tam_shp }} · abre no ArcGIS/QGIS">SHP</a>
+                </div>
+                {% endfor %}
+                <div class="gp-dl-nota">
+                    KML abre no Google Earth · SHP no ArcGIS e QGIS.<br>
+                    Todas as regiões juntas, com a coluna <b>REGIAO</b>. EPSG:4326.
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endmacro %}
 
@@ -1406,6 +1555,10 @@ def create_webgis():
                               'cor': COR_HIDRO, 'forma': 'linha', 'ativo': False,
                               'count': fmt(contexto['hidrografia']['count'])})
 
+    # 5. Arquivos para download (KML + Shapefile zipado)
+    print("\nGerando os arquivos para download...")
+    catalogo = exportar_dados(base_dir, camadas_dir)
+
     logo_uri = None
     logo_path = base_dir / 'logo' / 'LOGO RTA.png'
     if logo_path.exists():
@@ -1426,6 +1579,7 @@ def create_webgis():
         regioes=regioes_info,
         contexto=contexto_info,
         filtros_situacao=filtros_situacao,
+        downloads=catalogo,
         subtitulo='WebGIS · Inventário Rodoviário — Tocantins',
         logo=logo_uri,
     ))
