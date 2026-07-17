@@ -789,31 +789,45 @@ class PainelControle(MacroElement):
             .leaflet-popup-content { margin:11px 13px; }
             .leaflet-popup-content-wrapper { border-radius:10px; }
 
-            /* ---------- Celular: o painel vira uma gaveta ----------
-               No computador nada muda. No celular ele comeca fechado (para o
-               mapa aparecer), com um botao para abrir e um X para fechar. */
-            .gp-abrir { display:none; width:46px; height:46px; padding:0; border:none;
-                border-radius:13px; background:#1E3A72; color:#fff; cursor:pointer;
-                align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.32); }
-            .gp-abrir svg { width:23px; height:23px; }
-            #gp-painel .gp-fechar { display:none; position:absolute; top:11px; right:11px;
-                width:30px; height:30px; padding:0; border:none; border-radius:9px;
+            /* ---------- Celular: painel vira uma "bottom sheet" ----------
+               No computador nada muda. No celular o painel comeca fechado (o
+               mapa aparece inteiro); um botao "Camadas" no rodape sobe um
+               painel que ocupa so a metade de baixo, deixando o mapa visivel
+               em cima. Pensado para quem esta em campo. */
+            .gp-abrir { display:none; align-items:center; gap:8px; padding:11px 18px;
+                border:none; border-radius:26px; background:#1E3A72; color:#fff; cursor:pointer;
+                font-family:'Inter',-apple-system,sans-serif; font-size:14px; font-weight:600;
+                box-shadow:0 4px 16px rgba(0,0,0,0.35); }
+            .gp-abrir svg { width:20px; height:20px; flex:0 0 auto; }
+            #gp-painel .gp-fechar { display:none; position:absolute; top:11px; right:12px;
+                width:32px; height:32px; padding:0; border:none; border-radius:9px;
                 background:rgba(15,23,42,0.06); color:#475569; cursor:pointer;
-                align-items:center; justify-content:center; z-index:2; }
-            #gp-painel .gp-fechar svg { width:16px; height:16px; }
+                align-items:center; justify-content:center; z-index:3; }
+            #gp-painel .gp-fechar svg { width:17px; height:17px; }
             #gp-painel .gp-fechar:hover { background:rgba(15,23,42,0.12); }
+            #gp-painel .gp-alca { display:none; position:absolute; top:9px; left:50%;
+                transform:translateX(-50%); width:42px; height:4px; border-radius:2px;
+                background:#cbd5e1; }
 
             @media (max-width: 640px) {
-                #gp-painel { width:calc(100vw - 20px); max-width:360px; max-height:78vh;
-                    display:none; animation:none; }
+                #gp-painel {
+                    position:fixed !important; left:0 !important; right:0 !important;
+                    bottom:0 !important; top:auto !important; width:auto !important;
+                    max-width:none; margin:0 !important;
+                    max-height:60vh; border-radius:18px 18px 0 0; padding-top:22px;
+                    box-shadow:0 -6px 30px rgba(0,0,0,0.30);
+                    display:none; animation:gp-subir 0.28s cubic-bezier(0.16,1,0.3,1); }
                 #gp-painel.aberto { display:block; }
+                #gp-painel .gp-alca { display:block; }
+                #gp-painel .gp-fechar { display:flex; }
                 .gp-abrir { display:flex; }
                 .gp-abrir.escondido { display:none; }
-                #gp-painel .gp-fechar { display:flex; }
             }
+            @keyframes gp-subir { from { transform:translateY(100%); } to { transform:translateY(0); } }
         </style>
 
         <div id="gp-painel">
+            <div class="gp-alca"></div>
             <button type="button" class="gp-fechar" aria-label="Fechar painel">
                 <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
             </button>
@@ -1007,12 +1021,12 @@ class PainelControle(MacroElement):
                 // --- Gaveta no celular: botão flutuante para abrir o painel ---
                 var painelDiv = document.getElementById('gp-painel');
                 var BotaoAbrir = L.Control.extend({
-                    options: { position: 'topleft' },
+                    options: { position: 'bottomleft' },
                     onAdd: function() {
                         var b = L.DomUtil.create('button', 'gp-abrir');
                         b.type = 'button';
-                        b.setAttribute('aria-label', 'Abrir camadas');
-                        b.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M3 6l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 18l9 4 9-4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+                        b.setAttribute('aria-label', 'Abrir camadas e filtros');
+                        b.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M3 6l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 18l9 4 9-4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Camadas</span>';
                         L.DomEvent.disableClickPropagation(b);
                         L.DomEvent.on(b, 'click', function() {
                             painelDiv.classList.add('aberto');
