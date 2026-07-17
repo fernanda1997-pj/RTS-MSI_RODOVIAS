@@ -13,7 +13,8 @@ echo.
 echo  Este assistente vai:
 echo    1. Reler os shapefiles e regerar o mapa
 echo    2. Mostrar o relatorio de qualidade
-echo    3. Publicar no site (com a sua confirmacao)
+echo    3. Abrir o mapa para voce conferir
+echo    4. Publicar no site (com a sua confirmacao)
 echo.
 echo  IMPORTANTE: salve e feche o ArcGIS antes de continuar.
 echo.
@@ -21,7 +22,7 @@ pause
 
 echo.
 echo ==========================================================
-echo  [1/3]  Gerando o mapa a partir dos shapefiles...
+echo  [1/4]  Gerando o mapa a partir dos shapefiles...
 echo ==========================================================
 echo.
 
@@ -30,7 +31,7 @@ if errorlevel 1 goto :erro_geracao
 
 echo.
 echo ==========================================================
-echo  [2/3]  O que mudou
+echo  [2/4]  O que mudou
 echo ==========================================================
 echo.
 git status --short
@@ -44,7 +45,30 @@ echo     vazio ou duplicado. Vale conferir antes de publicar.
 echo.
 
 echo ==========================================================
-echo  [3/3]  Publicar
+echo  [3/4]  Conferir antes de publicar
+echo ==========================================================
+echo.
+echo  O mapa ja foi gerado aqui na sua maquina, mas ainda NAO
+echo  foi publicado. Voce pode abri-lo para revisar.
+echo.
+set "VER="
+set /p "VER=Abrir o mapa no navegador? (S = sim / Enter = pular): "
+if /i "%VER%"=="S" (
+    echo.
+    echo  Abrindo o mapa... confira e depois volte para esta janela.
+    echo.
+    echo  Se abrir uma versao antiga, aperte Ctrl+Shift+R no navegador
+    echo  para forcar o recarregamento.
+    echo.
+    start "" "mapa_interativo.html"
+    echo  ^>^> Quando terminar de conferir, volte aqui e continue.
+    echo.
+    pause
+)
+
+echo.
+echo ==========================================================
+echo  [4/4]  Publicar
 echo ==========================================================
 echo.
 echo  Ao publicar, o mapa vai para o GitHub e o Vercel

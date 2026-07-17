@@ -6,6 +6,7 @@ from pathlib import Path
 import warnings
 import base64
 import re
+import sys
 import unicodedata
 import html as _html
 
@@ -1062,9 +1063,12 @@ def create_webgis():
     camadas_dir = base_dir / "camadas"
     output_file = base_dir / "mapa_interativo.html"
 
+    # Falhas devolvem código != 0 para o atualizar.bat abortar antes de
+    # publicar. Sem isso, um erro aqui passaria batido e o site iria ao ar
+    # com o mapa antigo, sem ninguém perceber.
     if not camadas_dir.exists():
-        print(f"Erro: A pasta {camadas_dir} não existe.")
-        return
+        print(f"ERRO: a pasta '{camadas_dir}' não existe. Mapa NÃO gerado.")
+        sys.exit(1)
 
     m = folium.Map(location=[-15.7801, -47.9292], zoom_start=4, tiles=None,
                    max_zoom=21, zoom_control=False)
@@ -1280,6 +1284,15 @@ def create_webgis():
 
         except Exception as e:
             print(f"  Erro ao processar {shp_file.name}: {e}")
+
+    # Rede de segurança: pasta existe mas nada carregou (nomes fora do padrão,
+    # arquivos corrompidos). Sem isto, geraríamos um mapa vazio e o
+    # atualizar.bat o publicaria como se estivesse tudo bem.
+    if not regioes:
+        print("ERRO: nenhuma camada de região foi carregada. Mapa NÃO gerado.")
+        print("      Verifique os nomes dos arquivos: R{numero}_{TIPO}.shp")
+        print(f"      (ex.: R1_TRECHOS.shp). Pasta lida: {camadas_dir}")
+        sys.exit(1)
 
     # Ordem de sobreposição: hidrografia -> estado -> polígonos -> linhas -> pontos
     if 'hidrografia' in contexto:
