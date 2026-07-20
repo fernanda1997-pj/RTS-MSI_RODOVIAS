@@ -769,6 +769,11 @@ class PainelControle(MacroElement):
                 .pc-c1, .pc-c2, .pc-c3 { animation: none; }
             }
 
+            /* O poligono da regiao e so pano de fundo: os cliques atravessam
+               ele e chegam nos trechos e pontos que estao por cima. Sem isto,
+               era preciso desligar a regiao para conseguir clicar no resto. */
+            .gp-regiao { pointer-events: none !important; }
+
             /* Ficha do ponto crítico (popup) */
             .pc { font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif; color:#1e293b; min-width:236px; }
             .pc-top { display:flex; align-items:center; gap:8px; padding-bottom:7px; border-bottom:1px solid #e2e8f0; }
@@ -1102,11 +1107,26 @@ class PainelControle(MacroElement):
                 // --- Camadas (folhas: formato, situações dos trechos, SRE, contexto) ---
                 var camadas = { {% for reg in this.regioes %}{% for it in reg.itens %}{% if it.situacoes %}{% for s in it.situacoes %}"{{ s.layer.get_name() }}": {{ s.layer.get_name() }}, {% endfor %}{% else %}"{{ it.layer.get_name() }}": {{ it.layer.get_name() }}, {% endif %}{% endfor %}{% endfor %}{% for c in this.contexto %}"{{ c.layer.get_name() }}": {{ c.layer.get_name() }}, {% endfor %} };
 
+                // Polígonos de região: pano de fundo. Ao religar qualquer
+                // camada o Leaflet a joga para o topo, então reempurramos as
+                // regiões para trás depois de cada mudança.
+                var camadasFundo = [ {% for reg in this.regioes %}{% for it in reg.itens %}{% if not it.situacoes and it.forma == 'poli' %}"{{ it.layer.get_name() }}", {% endif %}{% endfor %}{% endfor %} ];
+                function regioesAoFundo() {
+                    camadasFundo.forEach(function(k){
+                        var l = camadas[k];
+                        if (l && l.bringToBack && map.hasLayer(l)) l.bringToBack();
+                    });
+                }
+
                 function aplicar(input) {
                     var lyr = camadas[input.getAttribute('data-camada')];
                     if (!lyr) return;
-                    if (input.checked) { if (!map.hasLayer(lyr)) map.addLayer(lyr); }
-                    else { if (map.hasLayer(lyr)) map.removeLayer(lyr); }
+                    if (input.checked) {
+                        if (!map.hasLayer(lyr)) map.addLayer(lyr);
+                        regioesAoFundo();
+                    } else {
+                        if (map.hasLayer(lyr)) map.removeLayer(lyr);
+                    }
                 }
 
                 // Apaga o bloco da região quando ela está toda desligada
@@ -1334,6 +1354,7 @@ class PainelControle(MacroElement):
                 });
                 atualizarBotaoLimpar();
                 pintarTudo();
+                regioesAoFundo();
 
                 // Nível 1: mestre da região -> liga/desliga tudo da região
                 document.querySelectorAll('#gp-painel input[data-regiao]:not([data-camada]):not([data-grupo])').forEach(function(mst){
@@ -1567,6 +1588,17 @@ def create_webgis():
                 style_fn = (lambda x: {'color': COR_SRE, 'fillColor': '#ffffff',
                                        'weight': 1.1, 'fillOpacity': 1, 'opacity': 0.85})
                 marcador = folium.CircleMarker(radius=2.5)
+            elif tipo == 'regiao':
+                # A região é pano de fundo: a classe 'gp-regiao' desliga o
+                # pointer-events no CSS, então o polígono NÃO rouba os cliques
+                # dos trechos e pontos que estão sobre ele. Sem popup, pelo
+                # mesmo motivo (ele nunca abriria).
+                style_fn = (lambda x, color=cor: {'color': color, 'fillColor': color,
+                                                  'weight': 3, 'fillOpacity': 0.35,
+                                                  'className': 'gp-regiao'})
+                marcador = folium.CircleMarker(radius=6, color=cor, fill_color=cor,
+                                               fill_opacity=0.9, weight=1)
+                popup = None
             else:
                 style_fn = (lambda x, color=cor: {'color': color, 'fillColor': color,
                                                   'weight': 3, 'fillOpacity': 0.35})
