@@ -1,5 +1,5 @@
 import folium
-from folium.plugins import Fullscreen, MousePosition
+from folium.plugins import Fullscreen, MousePosition, MarkerCluster
 from branca.element import MacroElement, Template
 import geopandas as gpd
 import pandas as pd
@@ -8,6 +8,7 @@ import warnings
 import base64
 import re
 import sys
+import math
 import unicodedata
 import html as _html
 
@@ -114,6 +115,55 @@ TIPO_META = {
 }
 TIPO_ORDEM = ['regiao', 'trechos', 'sre', 'criticos']
 
+# Inventário de elementos (drenagem, seguranca e OAEs). Um shapefile por tipo
+# e por regiao, nomeado {TIPO}_R{n} (ex.: OAE_R11, MEIO_FIO_R11).
+# (chave no nome do arquivo, rótulo, cor, forma do símbolo)
+INVENTARIO_META = [
+    ('OAE',      'Pontes (OAE)',      '#B45309', 'ponto'),   # obra de arte especial
+    ('OAC',      'Bueiros (OAC)',     '#0E7490', 'ponto'),   # obra de arte corrente
+    ('DESCIDA',  "Descida d'água",    '#0EA5E9', 'ponto'),
+    ('VALETA',   'Valetas',           '#15803D', 'linha'),
+    ('SARJETA',  'Sarjetas',          '#CA8A04', 'linha'),
+    ('MEIO_FIO', 'Meio-fio',          '#64748B', 'linha'),
+    ('DEFENSA',  'Defensas',          '#9333EA', 'linha'),
+]
+INVENTARIO_TIPOS = {m[0] for m in INVENTARIO_META}
+
+
+def geom_valida(geom):
+    """
+    True se a geometria existe e tem coordenadas finitas dentro do globo.
+    Filtra pontos com lat/lon NaN ou fora de faixa (que travam o Leaflet ao
+    calcular limites — foi o caso de um ponto da Descida d'água da R11).
+    """
+    if geom is None or geom.is_empty:
+        return False
+    try:
+        minx, miny, maxx, maxy = geom.bounds
+    except Exception:
+        return False
+    if not all(math.isfinite(v) for v in (minx, miny, maxx, maxy)):
+        return False
+    return -180 <= minx <= 180 and -180 <= maxx <= 180 and -90 <= miny <= 90 and -90 <= maxy <= 90
+
+
+def colunas_uteis(gdf):
+    """
+    Colunas que valem a pena mostrar no popup do inventário. Descarta lixo de
+    join do ArcGIS (Field13, sufixos _1, OBJECTID) e coordenadas soltas
+    (X/Y, que a posição no mapa já dá).
+    """
+    fora = re.compile(r'^(field\d+|objectid|rid|meas|distance|[xy]_?(inicio|final)?|'
+                      r'.*_\d+)$', re.IGNORECASE)
+    uteis = []
+    for c in gdf.columns:
+        if c == 'geometry':
+            continue
+        if fora.match(str(c)):
+            continue
+        uteis.append(c)
+    return uteis
+
 # Arquivos redundantes/brutos que não devem entrar no mapa
 IGNORAR = {
     'esatado_tocantins',     # duplicata (erro de digitação) de estado_tocantins
@@ -177,6 +227,10 @@ def classificar(nome):
     """
     if nome.lower() in IGNORAR:
         return 'skip'
+    # Inventário: {TIPO}_R{n} (ex.: OAE_R11, MEIO_FIO_R11)
+    mm = re.match(r'^(.+)_R\d+$', nome, re.IGNORECASE)
+    if mm and mm.group(1).upper() in INVENTARIO_TIPOS:
+        return 'inventario'
     n = _sem_acento(nome).replace('_', ' ').replace('-', ' ')
     if n.startswith('hidrografia'):        # antes de 'estado' (hidrografia_estado)
         return 'hidrografia'
@@ -681,21 +735,26 @@ class PainelControle(MacroElement):
             #gp-painel .gp-switch { display:none; }
             #gp-painel input[type="checkbox"] { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 
-            #gp-painel .gp-sub-item, #gp-painel .gp-tre-head, #gp-painel .gp-sit-head { cursor:pointer; }
-            #gp-painel .off { opacity:0.38; }
+            /* Cabeçalhos expandem ao clicar; as folhas não fazem nada no corpo
+               (ligar/desligar é só pelo olho). */
+            #gp-painel .gp-reg-head, #gp-painel .gp-tre-head, #gp-painel .gp-sit-head { cursor:pointer; }
+            #gp-painel .off { opacity:0.45; }
             #gp-painel .off .gp-sub-lbl, #gp-painel .off .gp-sit-cod {
                 text-decoration:line-through; text-decoration-color:#94a3b8; }
             #gp-painel .off .sw { filter:grayscale(1); }
 
-            #gp-painel .gp-olho { width:11px; height:11px; flex:0 0 auto; color:#94a3b8;
-                opacity:0; transition:opacity .12s; }
+            /* O olho é o ÚNICO botão de ligar/desligar — sempre visível
+               (indispensável no celular, que não tem "passar o mouse"),
+               destacando no hover e quando a camada está desligada. */
+            #gp-painel .gp-olho { width:15px; height:15px; flex:0 0 auto; color:#94a3b8;
+                opacity:0.5; cursor:pointer; transition:opacity .12s, color .12s; padding:2px; margin:-2px; box-sizing:content-box; }
+            #gp-painel .gp-olho:hover { opacity:1; color:#1E3A72; }
             #gp-painel .gp-reg-head:hover .gp-olho, #gp-painel .gp-sub-item:hover .gp-olho,
-            #gp-painel .gp-tre-head:hover .gp-olho, #gp-painel .gp-sit-head:hover .gp-olho { opacity:1; }
-            #gp-painel .off .gp-olho, #gp-painel .gp-reg.desligada .gp-olho { opacity:1; }
+            #gp-painel .gp-tre-head:hover .gp-olho, #gp-painel .gp-sit-head:hover .gp-olho { opacity:0.9; }
+            #gp-painel .off .gp-olho, #gp-painel .gp-reg.desligada .gp-olho { opacity:1; color:#64748b; }
             #gp-painel .gp-olho .o-off { display:none; }
             #gp-painel .off .gp-olho .o-on, #gp-painel .gp-reg.desligada > .gp-reg-head .gp-olho .o-on { display:none; }
             #gp-painel .off .gp-olho .o-off, #gp-painel .gp-reg.desligada > .gp-reg-head .gp-olho .o-off { display:block; }
-            #gp-painel .gp-olho:hover { color:#1E3A72; }
 
             /* Contadores em texto puro (a pílula cinza saiu com o redesenho),
                mas em tom escuro o bastante para leitura rápida em tela clara
@@ -726,6 +785,10 @@ class PainelControle(MacroElement):
                                   6% 42%, 24% 82%, 62% 92%, 92% 52%, 72% 8%, 18% 14%); }
             #gp-painel .sw.multi { width:20px; height:5px; border-radius:3px;
                 background:linear-gradient(90deg,#047857 0 25%,#2563EB 25% 50%,#F59E0B 50% 75%,#B45309 75% 100%); }
+            /* Símbolo do grupo Inventário: quadradinho com um "pino" */
+            #gp-painel .sw.inv { position:relative; width:13px; height:13px; border-radius:3px;
+                border:1.5px solid var(--c); background:color-mix(in srgb, var(--c) 15%, transparent); }
+            #gp-painel .sw.inv::after { content:''; position:absolute; inset:3px; border-radius:50%; background:var(--c); }
 
             /* Acessibilidade: foco visível por teclado */
             #gp-painel input:focus-visible + .gp-dot,
@@ -925,6 +988,34 @@ class PainelControle(MacroElement):
                                 {% endfor %}
                             </div>
                         </div>
+                        {% elif it.subitens %}
+                        <div class="gp-tre" data-grp="{{ it.grupo }}">
+                            <div class="gp-tre-head">
+                                <svg class="gp-chev2" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span class="sw {{ it.forma }}" style="--c: {{ it.cor }}"></span>
+                                <span class="gp-sub-lbl">{{ it.nome }}</span>
+                                <span class="gp-cnt">{{ it.count }}</span>
+                                <span class="gp-olho">
+                                    <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                                    <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                                </span>
+                                <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}">
+                            </div>
+                            <div class="gp-tre-body">
+                                {% for sc in it.subitens %}
+                                <div class="gp-sub-item">
+                                    <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-camada="{{ sc.layer.get_name() }}">
+                                    <span class="sw {{ sc.forma }}" style="--c: {{ sc.cor }}"></span>
+                                    <span class="gp-sub-lbl">{{ sc.nome }}</span>
+                                    <span class="gp-cnt">{{ sc.count }}</span>
+                                    <span class="gp-olho">
+                                        <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                                        <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
                         {% else %}
                         <div class="gp-sub-item">
                             <input type="checkbox" data-regiao="{{ reg.id }}" data-camada="{{ it.layer.get_name() }}" checked>
@@ -1083,14 +1174,23 @@ class PainelControle(MacroElement):
                     });
                 });
 
-                // Linhas de camada: clique alterna
-                document.querySelectorAll('#gp-painel .gp-sub-item, #gp-painel .gp-tre-head, #gp-painel .gp-sit-head')
-                    .forEach(function(linha){
-                        linha.addEventListener('click', function(e){
-                            e.stopPropagation();
-                            alternar(linha.querySelector('input[type="checkbox"]'));
-                        });
+                // Cabeçalhos de grupo/situação: clicar na linha EXPANDE.
+                // (Ligar/desligar é só pelo olho, a pedido — a linha não desliga.)
+                document.querySelectorAll('#gp-painel .gp-tre-head, #gp-painel .gp-sit-head')
+                    .forEach(function(h){
+                        h.addEventListener('click', function(){ h.parentNode.classList.toggle('open'); });
                     });
+
+                // O olho é o ÚNICO controle de ligar/desligar (o da região já
+                // tem seu handler acima; este cobre todo o resto).
+                document.querySelectorAll('#gp-painel .gp-olho').forEach(function(o){
+                    if (o.hasAttribute('data-olho-reg')) return;
+                    o.addEventListener('click', function(e){
+                        e.stopPropagation();
+                        var linha = o.closest('.gp-sub-item, .gp-tre-head, .gp-sit-head');
+                        if (linha) alternar(linha.querySelector('input[type="checkbox"]'));
+                    });
+                });
 
                 // --- Mapas de fundo ---
                 var bases = { {% for b in this.basemaps %}"{{ b.layer.get_name() }}": {{ b.layer.get_name() }}{% if not loop.last %}, {% endif %}{% endfor %} };
@@ -1105,7 +1205,7 @@ class PainelControle(MacroElement):
                 });
 
                 // --- Camadas (folhas: formato, situações dos trechos, SRE, contexto) ---
-                var camadas = { {% for reg in this.regioes %}{% for it in reg.itens %}{% if it.situacoes %}{% for s in it.situacoes %}"{{ s.layer.get_name() }}": {{ s.layer.get_name() }}, {% endfor %}{% else %}"{{ it.layer.get_name() }}": {{ it.layer.get_name() }}, {% endif %}{% endfor %}{% endfor %}{% for c in this.contexto %}"{{ c.layer.get_name() }}": {{ c.layer.get_name() }}, {% endfor %} };
+                var camadas = { {% for reg in this.regioes %}{% for it in reg.itens %}{% if it.situacoes %}{% for s in it.situacoes %}"{{ s.layer.get_name() }}": {{ s.layer.get_name() }}, {% endfor %}{% elif it.subitens %}{% for sc in it.subitens %}"{{ sc.layer.get_name() }}": {{ sc.layer.get_name() }}, {% endfor %}{% else %}"{{ it.layer.get_name() }}": {{ it.layer.get_name() }}, {% endif %}{% endfor %}{% endfor %}{% for c in this.contexto %}"{{ c.layer.get_name() }}": {{ c.layer.get_name() }}, {% endfor %} };
 
                 // Polígonos de região: pano de fundo. Ao religar qualquer
                 // camada o Leaflet a joga para o topo, então reempurramos as
@@ -1465,6 +1565,73 @@ def create_webgis():
                 contexto['estado'] = {'fg': fg, 'count': len(gdf)}
                 continue
 
+            # ------------------------------------------- inventário
+            if tipo == 'inventario':
+                mm = re.match(r'^(.+)_R(\d+)$', nome, re.IGNORECASE)
+                chave = mm.group(1).upper()
+                rid = 'R' + mm.group(2)
+                meta = next((m for m in INVENTARIO_META if m[0] == chave), None)
+                if meta is None:
+                    print(f"  Aviso: tipo de inventário '{chave}' desconhecido. Ignorado.")
+                    continue
+                _, rotulo, cor_inv, forma = meta
+
+                # Descarta geometrias com coordenada inválida (NaN/fora de faixa)
+                n_antes = len(gdf)
+                gdf = gdf[gdf.geometry.apply(geom_valida)].copy()
+                n_ruins = n_antes - len(gdf)
+                if n_ruins:
+                    print(f"  [QUALIDADE] {nome}: {n_ruins} feição(ões) com coordenada "
+                          f"inválida descartada(s).")
+                if len(gdf) == 0:
+                    print(f"  Aviso: {nome} ficou sem feições válidas. Ignorada.")
+                    continue
+
+                minx, miny, maxx, maxy = gdf.total_bounds
+                bounds.append([[miny, minx], [maxy, maxx]])
+
+                cols = colunas_uteis(gdf)
+                # Camada começa DESLIGADA (show=False)
+                fg = folium.FeatureGroup(name=f'{rid}_inv_{chave}', show=False, control=False)
+
+                if forma == 'ponto':
+                    # Pontos densos: agrupados em cluster (nao travam o mapa)
+                    cluster = MarkerCluster(options={'maxClusterRadius': 45,
+                                                     'disableClusteringAtZoom': 17})
+                    for _, linha in gdf.iterrows():
+                        if linha.geometry is None or linha.geometry.is_empty:
+                            continue
+                        campos = ''.join(
+                            f'<tr><td style="color:#94a3b8;padding:1px 8px 1px 0">{_html.escape(str(c))}</td>'
+                            f'<td style="font-weight:600">{_html.escape(str(linha[c]))}</td></tr>'
+                            for c in cols if linha[c] is not None and str(linha[c]).strip() not in ('', 'nan', 'None'))
+                        html = (f'<div style="font-family:Inter,sans-serif;font-size:11px">'
+                                f'<div style="font-weight:700;color:{cor_inv};margin-bottom:4px">{_html.escape(rotulo)}</div>'
+                                f'<table>{campos}</table></div>')
+                        folium.CircleMarker(
+                            location=[linha.geometry.y, linha.geometry.x],
+                            radius=4, color='#ffffff', weight=1,
+                            fill_color=cor_inv, fill_opacity=0.95,
+                            popup=folium.Popup(html, max_width=280),
+                        ).add_to(cluster)
+                    cluster.add_to(fg)
+                else:
+                    # Linhas: GeoJson direto (linhas nao agrupam)
+                    popup = (folium.GeoJsonPopup(fields=cols, aliases=cols, localize=True)
+                             if cols else None)
+                    folium.GeoJson(
+                        data=gdf[cols + ['geometry']], popup=popup,
+                        style_function=(lambda x, c=cor_inv: {'color': c, 'weight': 3, 'opacity': 0.85}),
+                    ).add_to(fg)
+
+                regioes.setdefault(rid, {}).setdefault('inventario', {'itens': {}})
+                regioes[rid]['inventario']['itens'][chave] = {
+                    'fg': fg, 'count': len(gdf), 'rotulo': rotulo,
+                    'cor': cor_inv, 'forma': forma,
+                }
+                print(f"  '{nome}' -> {rid} / inventário / {chave} ({len(gdf)} feições)")
+                continue
+
             # ------------------------------------------- dados por região
             minx, miny, maxx, maxy = gdf.total_bounds
             bounds.append([[miny, minx], [maxy, maxx]])
@@ -1647,6 +1814,13 @@ def create_webgis():
             else:
                 item['fg'].add_to(m)
 
+    # Inventário por cima (mas desligado por padrão)
+    for rid in ordem_regioes:
+        inv = regioes[rid].get('inventario')
+        if inv:
+            for chave, it in inv['itens'].items():
+                it['fg'].add_to(m)
+
     if bounds:
         m.fit_bounds([[min(b[0][0] for b in bounds), min(b[0][1] for b in bounds)],
                       [max(b[1][0] for b in bounds), max(b[1][1] for b in bounds)]])
@@ -1687,6 +1861,26 @@ def create_webgis():
                               'cor': item.get('cor', cor),   # região traz a sua
                               'forma': forma, 'count': fmt(item['count']),
                               'situacoes': None})
+
+        # Grupo "Inventário": expande em subcamadas (folhas simples), na ordem
+        # oficial de INVENTARIO_META.
+        inv = regioes[rid].get('inventario')
+        if inv:
+            subitens = []
+            total_inv = 0
+            for chave, _rot, _cor, _forma in INVENTARIO_META:
+                it = inv['itens'].get(chave)
+                if not it:
+                    continue
+                total_inv += it['count']
+                subitens.append({'nome': it['rotulo'], 'layer': it['fg'],
+                                 'cor': it['cor'], 'forma': it['forma'],
+                                 'count': fmt(it['count'])})
+            if subitens:
+                itens.append({'nome': 'Inventário', 'cor': COR_MARCA, 'forma': 'inv',
+                              'count': fmt(total_inv), 'grupo': f'{rid}-inventario',
+                              'situacoes': None, 'subitens': subitens})
+
         if itens:
             regioes_info.append({'id': rid, 'nome': nome_regiao(rid),
                                  'cor': cor_regiao(rid), 'itens': itens})
