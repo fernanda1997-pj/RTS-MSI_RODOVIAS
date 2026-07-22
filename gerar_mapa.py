@@ -118,15 +118,27 @@ TIPO_ORDEM = ['regiao', 'trechos', 'sre', 'criticos']
 # Inventário de elementos (drenagem, seguranca e OAEs). Um shapefile por tipo
 # e por regiao, nomeado {TIPO}_R{n} (ex.: OAE_R11, MEIO_FIO_R11).
 # (chave no nome do arquivo, rótulo, cor, forma do símbolo)
+# Cores em tríade (matizes ~120° de distância): o máximo de contraste
+# possível entre três, e nenhuma repete as cores já usadas no mapa.
 INVENTARIO_META = [
-    ('OAE',      'Pontes (OAE)',      '#B45309', 'ponto'),   # obra de arte especial
-    ('OAC',      'Bueiros (OAC)',     '#0E7490', 'ponto'),   # obra de arte corrente
+    ('OAE',      'Pontes (OAE)',      '#FACC15', 'ponto'),   # obra de arte especial
+    ('OAC',      'Bueiros (OAC)',     '#9333EA', 'ponto'),   # obra de arte corrente
     ('DESCIDA',  "Descida d'água",    '#0EA5E9', 'ponto'),
-    ('VALETA',   'Valetas',           '#15803D', 'linha'),
-    ('SARJETA',  'Sarjetas',          '#CA8A04', 'linha'),
-    ('MEIO_FIO', 'Meio-fio',          '#64748B', 'linha'),
-    ('DEFENSA',  'Defensas',          '#9333EA', 'linha'),
 ]
+
+# Camadas de linha do inventário, desativadas a pedido. Os shapefiles seguem
+# na pasta e são ignorados em silêncio. Para reativar, mova a entrada de volta
+# para INVENTARIO_META (o código de linhas continua pronto):
+#   ('VALETA',   'Valetas',   '#15803D', 'linha')
+#   ('SARJETA',  'Sarjetas',  '#CA8A04', 'linha')
+#   ('MEIO_FIO', 'Meio-fio',  '#64748B', 'linha')
+#   ('DEFENSA',  'Defensas',  '#9333EA', 'linha')
+INVENTARIO_DESATIVADOS = {'VALETA', 'SARJETA', 'MEIO_FIO', 'DEFENSA'}
+
+# Erros de digitação já vistos nos nomes de arquivo. Aceitamos o apelido (para
+# não perder a camada em silêncio) mas avisamos no console para corrigir.
+INVENTARIO_APELIDOS = {'AOE': 'OAE'}
+
 INVENTARIO_TIPOS = {m[0] for m in INVENTARIO_META}
 
 
@@ -227,10 +239,14 @@ def classificar(nome):
     """
     if nome.lower() in IGNORAR:
         return 'skip'
-    # Inventário: {TIPO}_R{n} (ex.: OAE_R11, MEIO_FIO_R11)
+    # Inventário: {TIPO}_R{n} (ex.: OAE_R11, DESCIDA_R11)
     mm = re.match(r'^(.+)_R\d+$', nome, re.IGNORECASE)
-    if mm and mm.group(1).upper() in INVENTARIO_TIPOS:
-        return 'inventario'
+    if mm:
+        t = mm.group(1).upper()
+        if t in INVENTARIO_TIPOS or t in INVENTARIO_APELIDOS:
+            return 'inventario'
+        if t in INVENTARIO_DESATIVADOS:
+            return 'skip'
     n = _sem_acento(nome).replace('_', ' ').replace('-', ' ')
     if n.startswith('hidrografia'):        # antes de 'estado' (hidrografia_estado)
         return 'hidrografia'
@@ -1570,6 +1586,11 @@ def create_webgis():
                 mm = re.match(r'^(.+)_R(\d+)$', nome, re.IGNORECASE)
                 chave = mm.group(1).upper()
                 rid = 'R' + mm.group(2)
+                if chave in INVENTARIO_APELIDOS:
+                    certo = INVENTARIO_APELIDOS[chave]
+                    print(f"  [NOME] '{nome}' parece erro de digitação de "
+                          f"'{certo}_{rid}'. Tratando como {certo} — vale renomear o arquivo.")
+                    chave = certo
                 meta = next((m for m in INVENTARIO_META if m[0] == chave), None)
                 if meta is None:
                     print(f"  Aviso: tipo de inventário '{chave}' desconhecido. Ignorado.")
