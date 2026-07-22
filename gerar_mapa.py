@@ -1378,7 +1378,7 @@ class PainelControle(MacroElement):
                 // ------------------------------------------------ BUSCA
                 var indice = [
                 {%- for reg in this.regioes %}{%- for it in reg.itens %}{%- if it.situacoes %}{%- for s in it.situacoes %}{%- for sr in s.sres %}
-                {s:"{{ sr.sre }}",r:"{{ sr.rod }}",c:"{{ sr.cid }}",g:"{{ reg.nome }}",t:"{{ s.codigo }}",k:"{{ s.cor }}",b:"{{ sr.b }}",f:"{{ s.layer.get_name() }}"},
+                {s:"{{ sr.sre }}",r:"{{ sr.rod }}",c:"{{ sr.cid }}",n:"{{ sr.num }}",g:"{{ reg.nome }}",t:"{{ s.codigo }}",k:"{{ s.cor }}",b:"{{ sr.b }}",f:"{{ s.layer.get_name() }}"},
                 {%- endfor %}{%- endfor %}{%- elif it.subitens %}{%- for sc in it.subitens %}{%- for sr in sc.busca %}
                 {s:"{{ sr.sre }}",r:"{{ sr.rod }}",c:"{{ sr.cid }}",g:"{{ reg.nome }}",t:"OAE",k:"{{ sc.cor }}",b:"{{ sr.b }}",f:"{{ sc.layer.get_name() }}"},
                 {%- endfor %}{%- endfor %}{%- endif %}{%- endfor %}{%- endfor %}
@@ -1412,7 +1412,12 @@ class PainelControle(MacroElement):
                     ultimosAchados = [];
                     if (!termo) return;
                     var q = normalizar(termo);
+                    // "20" ou "trecho 20" acham o trecho 20 pelo numero exato
+                    // (nao por pedaco, senao 20 casaria com 202, 203...).
+                    var soNumero = /^\d+$/.test(q);
+                    var qNum = q.replace(/^trecho\s*/, '');
                     var achados = indice.filter(function(i){
+                        if (i.n && (soNumero || q !== qNum) && i.n === qNum) return true;
                         return normalizar(i.s).indexOf(q) >= 0 ||
                                normalizar(i.r).indexOf(q) >= 0 ||
                                normalizar(i.c).indexOf(q) >= 0;
@@ -1420,6 +1425,13 @@ class PainelControle(MacroElement):
                     if (!achados.length) {
                         caixaRes.innerHTML = '<div class="gp-vazio">Nada encontrado</div>';
                         return;
+                    }
+                    // Numero exato do trecho vem primeiro: digitar "20" mostra o
+                    // trecho 20 antes dos SREs que apenas contem "20".
+                    if (soNumero || q !== qNum) {
+                        achados.sort(function(a, b){
+                            return ((a.n === qNum) ? 0 : 1) - ((b.n === qNum) ? 0 : 1);
+                        });
                     }
                     ultimosAchados = achados;
                     var total = achados.length;
@@ -1439,7 +1451,9 @@ class PainelControle(MacroElement):
                         d.className = 'gp-res';
                         d.innerHTML = '<span class="gp-res-txt">' +
                             '<span class="gp-res-sre">' + i.s + '</span>' +
-                            '<span class="gp-res-sub">' + [i.r, i.c, i.g].filter(Boolean).join(' · ') + '</span>' +
+                            '<span class="gp-res-sub">' +
+                              [i.n ? 'Trecho ' + i.n : '', i.r, i.c, i.g].filter(Boolean).join(' · ') +
+                            '</span>' +
                             '</span><span class="gp-res-tag" style="--c:' + i.k + '">' + i.t + '</span>';
                         d.addEventListener('click', function(){ irPara(i.b, i.f, i.s); });
                         caixaRes.appendChild(d);
@@ -1726,6 +1740,9 @@ def create_webgis():
                 col_sre = next((c for c in gdf.columns if str(c).upper() == 'SRE'), None)
                 col_rod = next((c for c in gdf.columns if str(c).upper() == 'RODOVIA'), None)
                 col_cid = next((c for c in gdf.columns if 'CIDADE' in str(c).upper()), None)
+                # 'Id' = número do trecho (único no estado; vários segmentos SRE
+                # compartilham o mesmo número). Entra na busca.
+                col_num = next((c for c in gdf.columns if str(c).lower() == 'id'), None)
                 situacoes = []
                 for sit in ordenar_situacoes(gdf['SITUACAO'].unique()):
                     sub = gdf[gdf['SITUACAO'] == sit]
@@ -1746,10 +1763,15 @@ def create_webgis():
                         if row.geometry is None or row.geometry.is_empty:
                             continue
                         minx_t, miny_t, maxx_t, maxy_t = row.geometry.bounds
+                        try:
+                            num = str(int(float(row[col_num]))) if col_num and row[col_num] is not None else ''
+                        except (TypeError, ValueError):
+                            num = ''
                         lista_sre.append({
                             'sre': js_safe(row[col_sre]) if col_sre else '—',
                             'rod': js_safe(row[col_rod]) if col_rod else '',
                             'cid': js_safe(row[col_cid]) if col_cid else '',
+                            'num': num,          # número do trecho (coluna Id)
                             'b': f'{miny_t:.6f},{minx_t:.6f},{maxy_t:.6f},{maxx_t:.6f}',
                         })
                     lista_sre.sort(key=lambda s: s['sre'])
