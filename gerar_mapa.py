@@ -577,7 +577,8 @@ class PainelControle(MacroElement):
     """
 
     def __init__(self, basemaps, default_base, regioes, contexto,
-                 filtros_situacao, subtitulo, logo=None, downloads=None):
+                 filtros_situacao, subtitulo, logo=None, downloads=None,
+                 filtros_criticos=None, filtros_inventario=None):
         super().__init__()
         self._name = 'PainelControle'
         self.basemaps = basemaps
@@ -585,6 +586,8 @@ class PainelControle(MacroElement):
         self.regioes = regioes
         self.contexto = contexto
         self.filtros_situacao = filtros_situacao
+        self.filtros_criticos = filtros_criticos or []
+        self.filtros_inventario = filtros_inventario or []
         self.downloads = downloads or []
         self.subtitulo = subtitulo
         self.logo = logo
@@ -666,8 +669,11 @@ class PainelControle(MacroElement):
             #gp-painel .gp-dl-nota { font-size:9px; color:#94a3b8; line-height:1.45; padding-top:7px;
                 margin-top:5px; border-top:1px solid #f1f5f9; }
 
-            /* Chips de filtro por situação */
-            #gp-painel .gp-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:9px; }
+            /* Chips de filtro (situação, pontos críticos, inventário) */
+            #gp-painel .gp-filtro-tit { font-size:9px; font-weight:700; letter-spacing:0.04em;
+                text-transform:uppercase; color:#94a3b8; margin:11px 0 5px; }
+            #gp-painel .gp-filtro-tit span { font-weight:500; text-transform:none; letter-spacing:0; color:#cbd5e1; }
+            #gp-painel .gp-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:0; }
             #gp-painel .gp-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 7px;
                 border:1px solid #e2e8f0; border-radius:20px; background:#fff; cursor:pointer;
                 font-family:inherit; font-size:9.5px; font-weight:700; color:#cbd5e1;
@@ -1020,7 +1026,7 @@ class PainelControle(MacroElement):
                             <div class="gp-tre-body">
                                 {% for sc in it.subitens %}
                                 <div class="gp-sub-item">
-                                    <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-camada="{{ sc.layer.get_name() }}">
+                                    <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-inv="{{ sc.chave }}" data-camada="{{ sc.layer.get_name() }}">
                                     <span class="sw {{ sc.forma }}" style="--c: {{ sc.cor }}"></span>
                                     <span class="gp-sub-lbl">{{ sc.nome }}</span>
                                     <span class="gp-cnt">{{ sc.count }}</span>
@@ -1082,11 +1088,30 @@ class PainelControle(MacroElement):
                     <button id="gp-limpar" type="button" aria-label="Limpar busca">&times;</button>
                 </div>
                 <div id="gp-resultados"></div>
+                <div class="gp-filtro-tit">Situação dos trechos</div>
                 <div class="gp-chips">
                     {% for f in this.filtros_situacao %}
                     <button type="button" class="gp-chip on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }}">{{ f.codigo }} <b>{{ f.count }}</b></button>
                     {% endfor %}
                 </div>
+
+                {% if this.filtros_criticos %}
+                <div class="gp-filtro-tit">Pontos críticos</div>
+                <div class="gp-chips">
+                    {% for f in this.filtros_criticos %}
+                    <button type="button" class="gp-chip on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }}">{{ f.codigo }} <b>{{ f.count }}</b></button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if this.filtros_inventario %}
+                <div class="gp-filtro-tit">Inventário <span>— liga em todas as regiões</span></div>
+                <div class="gp-chips">
+                    {% for f in this.filtros_inventario %}
+                    <button type="button" class="gp-chip" data-inv="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }}">{{ f.desc }} <b>{{ f.count }}</b></button>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
 
             {% if this.downloads %}
@@ -1354,6 +1379,8 @@ class PainelControle(MacroElement):
                 var indice = [
                 {%- for reg in this.regioes %}{%- for it in reg.itens %}{%- if it.situacoes %}{%- for s in it.situacoes %}{%- for sr in s.sres %}
                 {s:"{{ sr.sre }}",r:"{{ sr.rod }}",c:"{{ sr.cid }}",g:"{{ reg.nome }}",t:"{{ s.codigo }}",k:"{{ s.cor }}",b:"{{ sr.b }}",f:"{{ s.layer.get_name() }}"},
+                {%- endfor %}{%- endfor %}{%- elif it.subitens %}{%- for sc in it.subitens %}{%- for sr in sc.busca %}
+                {s:"{{ sr.sre }}",r:"{{ sr.rod }}",c:"{{ sr.cid }}",g:"{{ reg.nome }}",t:"OAE",k:"{{ sc.cor }}",b:"{{ sr.b }}",f:"{{ sc.layer.get_name() }}"},
                 {%- endfor %}{%- endfor %}{%- endif %}{%- endfor %}{%- endfor %}
                 ];
                 var campoBusca = document.getElementById('gp-busca');
@@ -1436,24 +1463,31 @@ class PainelControle(MacroElement):
                 });
 
                 // ------------------------------------------------ FILTROS (chips)
+                // Um chip pode mirar a situação (data-sit) ou o tipo de
+                // inventário (data-inv); em ambos os casos vale para TODAS as
+                // regiões de uma vez.
+                function alvoDoChip(chip) {
+                    return chip.hasAttribute('data-inv')
+                        ? '#gp-painel input[data-inv="' + chip.getAttribute('data-inv') + '"]'
+                        : '#gp-painel input[data-sit="' + chip.getAttribute('data-sit') + '"]';
+                }
                 document.querySelectorAll('#gp-painel .gp-chip').forEach(function(chip){
                     chip.addEventListener('click', function(){
-                        var sit = this.getAttribute('data-sit');
                         var ligar = !this.classList.contains('on');
                         this.classList.toggle('on', ligar);
-                        document.querySelectorAll('#gp-painel input[data-sit="' + sit + '"]').forEach(function(c){
+                        document.querySelectorAll(alvoDoChip(this)).forEach(function(c){
                             c.checked = ligar;
                             aplicar(c);
                             sincronizarPais(c.getAttribute('data-regiao'), c.getAttribute('data-grupo'));
                         });
+                        setTimeout(pintarTudo, 0);
                     });
                 });
 
                 // Mantém o chip coerente quando a situação é mexida pela árvore
                 function sincronizarChips() {
                     document.querySelectorAll('#gp-painel .gp-chip').forEach(function(chip){
-                        var sit = chip.getAttribute('data-sit');
-                        var alvos = document.querySelectorAll('#gp-painel input[data-sit="' + sit + '"]');
+                        var alvos = document.querySelectorAll(alvoDoChip(chip));
                         var algum = Array.prototype.some.call(alvos, function(c){ return c.checked; });
                         chip.classList.toggle('on', algum);
                     });
@@ -1615,6 +1649,13 @@ def create_webgis():
                 # Camada começa DESLIGADA (show=False)
                 fg = folium.FeatureGroup(name=f'{rid}_inv_{chave}', show=False, control=False)
 
+                # Só as pontes entram na busca: são poucas (centenas) e cada
+                # uma é uma estrutura nomeada. Bueiros e descidas somam
+                # milhares e pesariam o índice sem ganho real.
+                busca_inv = []
+                col_sre_inv = next((c for c in gdf.columns if str(c).upper() == 'SRE'), None)
+                col_km_inv = next((c for c in gdf.columns if str(c).upper() == 'KM'), None)
+
                 if forma == 'ponto':
                     # Pontos densos: agrupados em cluster (nao travam o mapa)
                     cluster = MarkerCluster(options={'maxClusterRadius': 45,
@@ -1635,6 +1676,17 @@ def create_webgis():
                             fill_color=cor_inv, fill_opacity=0.95,
                             popup=folium.Popup(html, max_width=280),
                         ).add_to(cluster)
+
+                        if chave == 'OAE':
+                            sre_v = js_safe(linha[col_sre_inv]) if col_sre_inv else ''
+                            km_v = js_safe(linha[col_km_inv]) if col_km_inv else ''
+                            busca_inv.append({
+                                'sre': f'Ponte {sre_v}'.strip() if sre_v else 'Ponte',
+                                'rod': f'km {km_v}' if km_v else '',
+                                'cid': sre_v,     # permite achar pelo código SRE
+                                'b': (f'{linha.geometry.y:.6f},{linha.geometry.x:.6f},'
+                                      f'{linha.geometry.y:.6f},{linha.geometry.x:.6f}'),
+                            })
                     cluster.add_to(fg)
                 else:
                     # Linhas: GeoJson direto (linhas nao agrupam)
@@ -1648,7 +1700,7 @@ def create_webgis():
                 regioes.setdefault(rid, {}).setdefault('inventario', {'itens': {}})
                 regioes[rid]['inventario']['itens'][chave] = {
                     'fg': fg, 'count': len(gdf), 'rotulo': rotulo,
-                    'cor': cor_inv, 'forma': forma,
+                    'cor': cor_inv, 'forma': forma, 'busca': busca_inv,
                 }
                 print(f"  '{nome}' -> {rid} / inventário / {chave} ({len(gdf)} feições)")
                 continue
@@ -1895,8 +1947,10 @@ def create_webgis():
                     continue
                 total_inv += it['count']
                 subitens.append({'nome': it['rotulo'], 'layer': it['fg'],
+                                 'chave': chave,           # para o filtro global
                                  'cor': it['cor'], 'forma': it['forma'],
-                                 'count': fmt(it['count'])})
+                                 'count': fmt(it['count']),
+                                 'busca': it.get('busca') or []})
             if subitens:
                 itens.append({'nome': 'Inventário', 'cor': COR_MARCA, 'forma': 'inv',
                               'count': fmt(total_inv), 'grupo': f'{rid}-inventario',
@@ -1925,12 +1979,34 @@ def create_webgis():
     if logo_path.exists():
         logo_uri = 'data:image/png;base64,' + base64.b64encode(logo_path.read_bytes()).decode('ascii')
 
-    # Filtros globais por situação (valem para todas as regiões)
+    # ---------------- Filtros globais (valem para TODAS as regiões) ----------
+    # Situação dos trechos
     filtros_situacao = []
     for cod in ordenar_situacoes(total_situacao.keys()):
         desc, cor = info_situacao(cod)
         filtros_situacao.append({'codigo': cod, 'desc': desc, 'cor': cor,
                                  'count': fmt(total_situacao[cod])})
+
+    # Status dos pontos críticos (somando as regiões)
+    tot_pc = {}
+    for rid in ordem_regioes:
+        item = regioes[rid].get('criticos')
+        for s in (item or {}).get('situacoes', []):
+            tot_pc[s['codigo']] = tot_pc.get(s['codigo'], 0) + s['count']
+    filtros_criticos = [
+        {'codigo': cod, 'desc': cod, 'cor': _status_pc(cod)[1], 'count': fmt(tot_pc[cod])}
+        for cod in ORDEM_STATUS_PC if cod in tot_pc
+    ]
+
+    # Inventário por tipo (somando as regiões)
+    tot_inv = {}
+    for rid in ordem_regioes:
+        for chave, it in (regioes[rid].get('inventario') or {}).get('itens', {}).items():
+            tot_inv[chave] = tot_inv.get(chave, 0) + it['count']
+    filtros_inventario = [
+        {'codigo': chave, 'desc': rotulo, 'cor': cor, 'count': fmt(tot_inv[chave])}
+        for chave, rotulo, cor, _f in INVENTARIO_META if chave in tot_inv
+    ]
 
     m.add_child(PainelControle(
         basemaps=[{'nome': 'Padrão', 'layer': tl_padrao, 'icone': 'mapa'},
@@ -1940,6 +2016,8 @@ def create_webgis():
         regioes=regioes_info,
         contexto=contexto_info,
         filtros_situacao=filtros_situacao,
+        filtros_criticos=filtros_criticos,
+        filtros_inventario=filtros_inventario,
         downloads=catalogo,
         subtitulo='WebGIS · Inventário Rodoviário — Tocantins',
         logo=logo_uri,
