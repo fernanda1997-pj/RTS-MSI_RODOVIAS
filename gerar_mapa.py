@@ -946,25 +946,29 @@ class PainelControle(MacroElement):
                 align-items:center; justify-content:center; z-index:3; }
             #gp-painel .gp-fechar svg { width:17px; height:17px; }
             #gp-painel .gp-fechar:hover { background:rgba(15,23,42,0.12); }
-            #gp-painel .gp-alca { display:none; position:absolute; top:9px; left:50%;
-                transform:translateX(-50%); width:42px; height:4px; border-radius:2px;
+            /* Alça vertical na borda direita da gaveta (dica de "arraste p/ o lado") */
+            #gp-painel .gp-alca { display:none; position:absolute; right:6px; top:50%;
+                transform:translateY(-50%); width:4px; height:44px; border-radius:2px;
                 background:#cbd5e1; }
 
             @media (max-width: 640px) {
+                /* Gaveta LATERAL: desliza da esquerda, ocupa a altura toda.
+                   Fechada por padrão (fora da tela); arraste p/ a esquerda ou
+                   toque no X para esconder e ver o mapa. */
                 #gp-painel {
-                    position:fixed !important; left:0 !important; right:0 !important;
-                    bottom:0 !important; top:auto !important; width:auto !important;
-                    max-width:none; margin:0 !important;
-                    max-height:60vh; border-radius:18px 18px 0 0; padding-top:22px;
-                    box-shadow:0 -6px 30px rgba(0,0,0,0.30);
-                    display:none; animation:gp-subir 0.28s cubic-bezier(0.16,1,0.3,1); }
-                #gp-painel.aberto { display:block; }
+                    position:fixed !important; left:0 !important; top:0 !important;
+                    bottom:0 !important; right:auto !important;
+                    width:84vw !important; max-width:330px; max-height:none; margin:0 !important;
+                    height:100%; border-radius:0 16px 16px 0; padding-right:20px;
+                    box-shadow:6px 0 30px rgba(0,0,0,0.28);
+                    transform:translateX(-100%); transition:transform 0.28s cubic-bezier(0.16,1,0.3,1);
+                    animation:none; display:block; }
+                #gp-painel.aberto { transform:translateX(0); }
                 #gp-painel .gp-alca { display:block; }
                 #gp-painel .gp-fechar { display:flex; }
                 .gp-abrir { display:flex; }
                 .gp-abrir.escondido { display:none; }
             }
-            @keyframes gp-subir { from { transform:translateY(100%); } to { transform:translateY(0); } }
         </style>
 
         <div id="gp-painel">
@@ -1252,11 +1256,46 @@ class PainelControle(MacroElement):
                 });
                 new BotaoAbrir().addTo(map);
 
-                painelDiv.querySelector('.gp-fechar').addEventListener('click', function() {
+                function fecharPainel() {
                     painelDiv.classList.remove('aberto');
                     var ab = document.querySelector('.gp-abrir');
                     if (ab) ab.classList.remove('escondido');
-                });
+                }
+                painelDiv.querySelector('.gp-fechar').addEventListener('click', fecharPainel);
+
+                // Gesto: arrastar a gaveta para a ESQUERDA a esconde (só no
+                // celular). Distingue arrasto horizontal de rolagem vertical
+                // para não atrapalhar o scroll do painel.
+                (function() {
+                    var x0 = null, y0 = null, arrastando = false, dx = 0;
+                    painelDiv.addEventListener('touchstart', function(e) {
+                        if (window.innerWidth > 640) return;
+                        var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY;
+                        arrastando = false; dx = 0;
+                    }, { passive: true });
+                    painelDiv.addEventListener('touchmove', function(e) {
+                        if (x0 === null) return;
+                        var t = e.touches[0], ddx = t.clientX - x0, ddy = t.clientY - y0;
+                        if (!arrastando) {
+                            if (Math.abs(ddx) > 10 && Math.abs(ddx) > Math.abs(ddy) * 1.4) arrastando = true;
+                            else if (Math.abs(ddy) > 10) { x0 = null; return; }  // é rolagem
+                            else return;
+                        }
+                        if (ddx < 0) {  // só arrasto para a esquerda
+                            dx = ddx;
+                            painelDiv.style.transition = 'none';
+                            painelDiv.style.transform = 'translateX(' + ddx + 'px)';
+                        }
+                    }, { passive: true });
+                    painelDiv.addEventListener('touchend', function() {
+                        if (arrastando) {
+                            painelDiv.style.transition = '';
+                            painelDiv.style.transform = '';
+                            if (dx < -60) fecharPainel();   // arrastou o bastante
+                        }
+                        x0 = null; y0 = null; arrastando = false; dx = 0;
+                    });
+                })();
 
                 // --- MINIMALISTA: a linha é o controle ---------------------
                 // Regra: a seta expande/recolhe; o resto da linha liga/desliga.
