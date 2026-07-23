@@ -579,7 +579,7 @@ class PainelControle(MacroElement):
     def __init__(self, basemaps, default_base, regioes, contexto,
                  filtros_situacao, subtitulo, logo=None, downloads=None,
                  filtros_criticos=None, filtros_inventario=None,
-                 prop_situacao=None, donut_criticos=None):
+                 prop_situacao=None, donut_criticos=None, logo2=None):
         super().__init__()
         self._name = 'PainelControle'
         self.basemaps = basemaps
@@ -594,6 +594,7 @@ class PainelControle(MacroElement):
         self.downloads = downloads or []
         self.subtitulo = subtitulo
         self.logo = logo
+        self.logo2 = logo2
         self._template = Template(u"""
         {% macro html(this, kwargs) %}
         <style>
@@ -612,7 +613,11 @@ class PainelControle(MacroElement):
             #gp-painel::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
 
             #gp-painel .gp-header { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding-bottom:13px; margin-bottom:2px; border-bottom:1px solid rgba(0,0,0,0.08); }
-            #gp-painel .gp-logo-img { width:154px; height:auto; display:block; }
+            #gp-painel .gp-logos { display:flex; align-items:center; gap:11px; }
+            #gp-painel .gp-logo-img { display:block; width:auto; }
+            #gp-painel .gp-logo-rta { height:31px; }
+            #gp-painel .gp-logo-msi { height:40px; mix-blend-mode:multiply; }
+            #gp-painel .gp-logo-sep { width:1px; align-self:center; height:30px; background:rgba(0,0,0,0.12); }
             #gp-painel .gp-sub { display:flex; align-items:center; gap:6px; font-size:10.5px; font-weight:500; letter-spacing:0.02em; color:#64748b; }
             #gp-painel .gp-sub::before { content:''; width:6px; height:6px; border-radius:50%; background:#1E3A72; flex:0 0 auto; }
 
@@ -673,9 +678,12 @@ class PainelControle(MacroElement):
                 margin-top:5px; border-top:1px solid #f1f5f9; }
 
             /* Chips de filtro (situação, pontos críticos, inventário) */
-            #gp-painel .gp-filtro-tit { font-size:9px; font-weight:700; letter-spacing:0.04em;
-                text-transform:uppercase; color:#94a3b8; margin:11px 0 5px; }
-            #gp-painel .gp-filtro-tit span { font-weight:600; text-transform:none; letter-spacing:0; color:#64748b; }
+            #gp-painel .gp-filtro-tit { display:flex; align-items:center; font-size:9px; font-weight:700;
+                letter-spacing:0.04em; text-transform:uppercase; color:#94a3b8; margin:11px 0 5px; }
+            #gp-painel .gp-filtro-tit .gp-ft-lbl { flex:1; min-width:0; }
+            #gp-painel .gp-filtro-tit .gp-ft-lbl span { font-weight:600; text-transform:none; letter-spacing:0; color:#64748b; }
+            #gp-painel .gp-filtro-tit .gp-olho { opacity:0.8; }
+            #gp-painel .gp-filtro-tit:hover .gp-olho { opacity:1; }
             #gp-painel .gp-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:0; }
             #gp-painel .gp-chip i { font-style:normal; font-weight:600; opacity:0.6; margin-left:1px; }
 
@@ -977,8 +985,18 @@ class PainelControle(MacroElement):
                 <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
             </button>
             <div class="gp-header">
-                {% if this.logo %}
-                <img class="gp-logo-img" src="{{ this.logo }}" alt="RTA Engenheiros Consultores">
+                {% if this.logo or this.logo2 %}
+                <div class="gp-logos">
+                    {% if this.logo %}
+                    <img class="gp-logo-img gp-logo-rta" src="{{ this.logo }}" alt="RTA Engenheiros Consultores">
+                    {% endif %}
+                    {% if this.logo and this.logo2 %}
+                    <span class="gp-logo-sep"></span>
+                    {% endif %}
+                    {% if this.logo2 %}
+                    <img class="gp-logo-img gp-logo-msi" src="{{ this.logo2 }}" alt="MSI Engenharia e Consultoria">
+                    {% endif %}
+                </div>
                 {% endif %}
                 <div class="gp-sub">{{ this.subtitulo }}</div>
             </div>
@@ -1143,7 +1161,13 @@ class PainelControle(MacroElement):
                     <button id="gp-limpar" type="button" aria-label="Limpar busca">&times;</button>
                 </div>
                 <div id="gp-resultados"></div>
-                <div class="gp-filtro-tit">Situação dos trechos <span>{{ this.prop_situacao.total }}</span></div>
+                <div class="gp-filtro-tit">
+                    <span class="gp-ft-lbl">Situação dos trechos <span>{{ this.prop_situacao.total }}</span></span>
+                    <span class="gp-olho" data-olho-grupo="situacao" role="button" tabindex="0" title="Ligar / desligar todas as situações em todas as regiões">
+                        <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                        <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                    </span>
+                </div>
                 <div class="gp-prop" title="Proporção dos trechos por situação">
                     {% for f in this.filtros_situacao %}
                     <span class="gp-prop-seg" data-sit="{{ f.codigo }}" style="width:{{ f.pct }}%; background:{{ f.cor }}" title="{{ f.codigo }} · {{ f.pct }}%"></span>
@@ -1156,7 +1180,13 @@ class PainelControle(MacroElement):
                 </div>
 
                 {% if this.filtros_criticos %}
-                <div class="gp-filtro-tit">Pontos críticos <span>{{ this.donut_criticos.total }}</span></div>
+                <div class="gp-filtro-tit">
+                    <span class="gp-ft-lbl">Pontos críticos <span>{{ this.donut_criticos.total }}</span></span>
+                    <span class="gp-olho" data-olho-grupo="criticos" role="button" tabindex="0" title="Ligar / desligar todos os pontos críticos em todas as regiões">
+                        <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                        <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                    </span>
+                </div>
                 <div class="gp-donut">
                     <svg class="gp-donut-svg" viewBox="0 0 42 42" role="img" aria-label="Composição dos pontos críticos">
                         {% for s in this.donut_criticos.segmentos %}
@@ -1178,7 +1208,13 @@ class PainelControle(MacroElement):
                 {% endif %}
 
                 {% if this.filtros_inventario %}
-                <div class="gp-filtro-tit">Inventário <span>— liga em todas as regiões</span></div>
+                <div class="gp-filtro-tit">
+                    <span class="gp-ft-lbl">Inventário <span>— liga em todas as regiões</span></span>
+                    <span class="gp-olho" data-olho-grupo="inventario" role="button" tabindex="0" title="Ligar / desligar todo o inventário em todas as regiões">
+                        <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
+                        <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                    </span>
+                </div>
                 <div class="gp-inv-cards">
                     {% for f in this.filtros_inventario %}
                     <button type="button" class="gp-inv-card" data-inv="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }} · {{ f.count }}">
@@ -1615,6 +1651,44 @@ class PainelControle(MacroElement):
                     });
                 });
 
+                // ------ Olho-mestre: liga/desliga uma categoria inteira em
+                // todas as regiões de uma vez (Situação, Pontos críticos, Inventário).
+                function chipsDoGrupo(grupo) {
+                    if (grupo === 'situacao')  return document.querySelectorAll('#gp-painel .gp-chips .gp-chip');
+                    if (grupo === 'criticos')  return document.querySelectorAll('#gp-painel .gp-donut-leg .gp-chip');
+                    return document.querySelectorAll('#gp-painel .gp-inv-card');
+                }
+                function alternarGrupo(chips, ligar) {
+                    chips.forEach(function(chip){
+                        chip.classList.toggle('on', ligar);
+                        document.querySelectorAll(alvoDoChip(chip)).forEach(function(c){
+                            c.checked = ligar;
+                            aplicar(c);
+                            sincronizarPais(c.getAttribute('data-regiao'), c.getAttribute('data-grupo'));
+                        });
+                    });
+                    setTimeout(function(){ pintarTudo(); sincronizarChips(); atualizarBotaoLimpar(); }, 0);
+                }
+                function sincronizarOlhosMestre() {
+                    document.querySelectorAll('#gp-painel .gp-olho[data-olho-grupo]').forEach(function(olho){
+                        var chips = chipsDoGrupo(olho.getAttribute('data-olho-grupo'));
+                        var algum = Array.prototype.some.call(chips, function(c){ return c.classList.contains('on'); });
+                        olho.closest('.gp-filtro-tit').classList.toggle('off', !algum);
+                    });
+                }
+                document.querySelectorAll('#gp-painel .gp-olho[data-olho-grupo]').forEach(function(olho){
+                    function acionar(e){
+                        e.preventDefault(); e.stopPropagation();
+                        var chips = chipsDoGrupo(olho.getAttribute('data-olho-grupo'));
+                        var algum = Array.prototype.some.call(chips, function(c){ return c.classList.contains('on'); });
+                        alternarGrupo(chips, !algum);   // algum ligado -> desliga tudo; senão liga tudo
+                    }
+                    olho.addEventListener('click', acionar);
+                    olho.addEventListener('keydown', function(e){
+                        if (e.key === 'Enter' || e.key === ' ') acionar(e);
+                    });
+                });
+
                 // Mantém o chip coerente quando a situação é mexida pela árvore
                 function sincronizarChips() {
                     document.querySelectorAll('#gp-painel .gp-chip, #gp-painel .gp-inv-card').forEach(function(chip){
@@ -1630,6 +1704,7 @@ class PainelControle(MacroElement):
                             });
                         }
                     });
+                    sincronizarOlhosMestre();
                 }
                 document.querySelectorAll('#gp-painel input[type="checkbox"]').forEach(function(c){
                     c.addEventListener('change', function(){
@@ -1642,6 +1717,7 @@ class PainelControle(MacroElement):
                     pintarRegiao(b.getAttribute('data-reg'));
                 });
                 atualizarBotaoLimpar();
+                sincronizarChips();
                 pintarTudo();
                 regioesAoFundo();
 
@@ -2125,10 +2201,24 @@ def create_webgis():
     print("\nGerando os arquivos para download...")
     catalogo = exportar_dados(base_dir, camadas_dir)
 
-    logo_uri = None
-    logo_path = base_dir / 'logo' / 'LOGO RTA.png'
-    if logo_path.exists():
-        logo_uri = 'data:image/png;base64,' + base64.b64encode(logo_path.read_bytes()).decode('ascii')
+    def carregar_logo(p):
+        ext = p.suffix.lower().lstrip('.')
+        mime = 'jpeg' if ext in ('jpg', 'jpeg') else ext
+        return f'data:image/{mime};base64,' + base64.b64encode(p.read_bytes()).decode('ascii')
+
+    logo_dir = base_dir / 'logo'
+    logo_rta = logo_dir / 'LOGO RTA.png'
+    logo_uri = carregar_logo(logo_rta) if logo_rta.exists() else None
+
+    # 2ª logo (MSI): arquivo com 'MSI' no nome; senão, qualquer imagem da pasta
+    # que não seja a RTA (aceita o nome do WhatsApp).
+    outras = [p for p in sorted(logo_dir.glob('*'))
+              if p.is_file() and p.name != 'LOGO RTA.png'
+              and p.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp')]
+    msi = next((p for p in outras if 'msi' in p.name.lower()), outras[0] if outras else None)
+    logo2_uri = carregar_logo(msi) if msi else None
+    if msi:
+        print(f"2ª logo carregada: {msi.name}")
 
     # ---------------- Filtros globais (valem para TODAS as regiões) ----------
     # Situação dos trechos — com % (proporção do total de trechos)
@@ -2190,6 +2280,7 @@ def create_webgis():
         downloads=catalogo,
         subtitulo='WebGIS · Inventário Rodoviário — Tocantins',
         logo=logo_uri,
+        logo2=logo2_uri,
     ))
 
     m.save(output_file)
