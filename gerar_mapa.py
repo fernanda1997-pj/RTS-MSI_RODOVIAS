@@ -702,14 +702,14 @@ class PainelControle(MacroElement):
             /* Inventário em cartões com ícone (como os Mapas de Fundo). São
                toggles: cada um liga/desliga independente (multi-seleção), e o
                estado ligado usa a cor do próprio tipo. */
-            #gp-painel .gp-inv-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:2px; }
-            #gp-painel .gp-inv-card { display:flex; flex-direction:column; align-items:center; gap:4px;
-                padding:9px 3px 8px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc;
+            #gp-painel .gp-inv-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:2px; }
+            #gp-painel .gp-inv-card { display:flex; flex-direction:column; align-items:center; gap:2px;
+                padding:6px 3px 5px; border:1px solid #e2e8f0; border-radius:9px; background:#f8fafc;
                 cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s, box-shadow .15s; }
             #gp-painel .gp-inv-card .gp-inv-ic { color:#94a3b8; display:flex; transition:color .15s; }
-            #gp-painel .gp-inv-card .gp-inv-ic svg { width:19px; height:19px; }
-            #gp-painel .gp-inv-card .gp-inv-nm { font-size:10px; font-weight:600; color:#64748b; letter-spacing:0.01em; }
-            #gp-painel .gp-inv-card .gp-inv-n { font-size:9.5px; font-weight:700; color:#94a3b8; font-variant-numeric:tabular-nums; }
+            #gp-painel .gp-inv-card .gp-inv-ic svg { width:16px; height:16px; }
+            #gp-painel .gp-inv-card .gp-inv-nm { font-size:9px; font-weight:600; color:#64748b; letter-spacing:0.01em; }
+            #gp-painel .gp-inv-card .gp-inv-n { font-size:8.5px; font-weight:700; color:#94a3b8; font-variant-numeric:tabular-nums; }
             #gp-painel .gp-inv-card:hover { border-color:#cbd5e1; background:#fff; }
             #gp-painel .gp-inv-card.on { border-color:var(--c); background:color-mix(in srgb, var(--c) 9%, #fff);
                 box-shadow:0 0 0 2px color-mix(in srgb, var(--c) 16%, transparent); }
