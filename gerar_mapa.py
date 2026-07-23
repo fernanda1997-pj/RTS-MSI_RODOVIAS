@@ -958,7 +958,7 @@ class PainelControle(MacroElement):
                 #gp-painel {
                     position:fixed !important; left:0 !important; top:0 !important;
                     bottom:0 !important; right:auto !important;
-                    width:84vw !important; max-width:330px; max-height:none; margin:0 !important;
+                    width:74vw !important; max-width:288px; max-height:none; margin:0 !important;
                     height:100%; border-radius:0 16px 16px 0; padding-right:20px;
                     box-shadow:6px 0 30px rgba(0,0,0,0.28);
                     transform:translateX(-100%); transition:transform 0.28s cubic-bezier(0.16,1,0.3,1);
