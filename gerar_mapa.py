@@ -698,6 +698,24 @@ class PainelControle(MacroElement):
             #gp-painel .gp-chip-row { width:100%; justify-content:flex-start; border-radius:7px !important; }
             #gp-painel .gp-chip-row .gp-cr-nome { flex:1; text-align:left; }
             #gp-painel .gp-chip-row b { margin-left:auto; }
+
+            /* Inventário em cartões com ícone (como os Mapas de Fundo). São
+               toggles: cada um liga/desliga independente (multi-seleção), e o
+               estado ligado usa a cor do próprio tipo. */
+            #gp-painel .gp-inv-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:2px; }
+            #gp-painel .gp-inv-card { display:flex; flex-direction:column; align-items:center; gap:4px;
+                padding:9px 3px 8px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc;
+                cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s, box-shadow .15s; }
+            #gp-painel .gp-inv-card .gp-inv-ic { color:#94a3b8; display:flex; transition:color .15s; }
+            #gp-painel .gp-inv-card .gp-inv-ic svg { width:19px; height:19px; }
+            #gp-painel .gp-inv-card .gp-inv-nm { font-size:10px; font-weight:600; color:#64748b; letter-spacing:0.01em; }
+            #gp-painel .gp-inv-card .gp-inv-n { font-size:9.5px; font-weight:700; color:#94a3b8; font-variant-numeric:tabular-nums; }
+            #gp-painel .gp-inv-card:hover { border-color:#cbd5e1; background:#fff; }
+            #gp-painel .gp-inv-card.on { border-color:var(--c); background:color-mix(in srgb, var(--c) 9%, #fff);
+                box-shadow:0 0 0 2px color-mix(in srgb, var(--c) 16%, transparent); }
+            #gp-painel .gp-inv-card.on .gp-inv-ic { color:var(--c); }
+            #gp-painel .gp-inv-card.on .gp-inv-nm { color:#334155; }
+            #gp-painel .gp-inv-card.on .gp-inv-n { color:#0f172a; }
             #gp-painel .gp-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 7px;
                 border:1px solid #e2e8f0; border-radius:20px; background:#fff; cursor:pointer;
                 font-family:inherit; font-size:9.5px; font-weight:700; color:#cbd5e1;
@@ -1157,9 +1175,18 @@ class PainelControle(MacroElement):
 
                 {% if this.filtros_inventario %}
                 <div class="gp-filtro-tit">Inventário <span>— liga em todas as regiões</span></div>
-                <div class="gp-chips">
+                <div class="gp-inv-cards">
                     {% for f in this.filtros_inventario %}
-                    <button type="button" class="gp-chip" data-inv="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }}">{{ f.desc }} <b>{{ f.count }}</b></button>
+                    <button type="button" class="gp-inv-card" data-inv="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }} · {{ f.count }}">
+                        <span class="gp-inv-ic">
+                        {% if f.codigo == 'OAE' %}<svg viewBox="0 0 24 24" fill="none"><path d="M2 17V9M22 17V9M2 13c4 0 5-6 10-6s6 6 10 6M6 13v4M12 12v5M18 13v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                        {% elif f.codigo == 'OAC' %}<svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="8" rx="8" ry="3.4" stroke="currentColor" stroke-width="1.6"/><path d="M4 8v8c0 1.9 3.6 3.4 8 3.4s8-1.5 8-3.4V8" stroke="currentColor" stroke-width="1.6"/><ellipse cx="12" cy="15.6" rx="3.6" ry="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                        {% else %}<svg viewBox="0 0 24 24" fill="none"><path d="M12 3s6.5 7 6.5 11a6.5 6.5 0 01-13 0C5.5 10 12 3 12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                        {% endif %}
+                        </span>
+                        <span class="gp-inv-nm">{{ f.curto }}</span>
+                        <span class="gp-inv-n">{{ f.count }}</span>
+                    </button>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -1536,7 +1563,7 @@ class PainelControle(MacroElement):
                         ? '#gp-painel input[data-inv="' + chip.getAttribute('data-inv') + '"]'
                         : '#gp-painel input[data-sit="' + chip.getAttribute('data-sit') + '"]';
                 }
-                document.querySelectorAll('#gp-painel .gp-chip').forEach(function(chip){
+                document.querySelectorAll('#gp-painel .gp-chip, #gp-painel .gp-inv-card').forEach(function(chip){
                     chip.addEventListener('click', function(){
                         var ligar = !this.classList.contains('on');
                         this.classList.toggle('on', ligar);
@@ -1551,7 +1578,7 @@ class PainelControle(MacroElement):
 
                 // Mantém o chip coerente quando a situação é mexida pela árvore
                 function sincronizarChips() {
-                    document.querySelectorAll('#gp-painel .gp-chip').forEach(function(chip){
+                    document.querySelectorAll('#gp-painel .gp-chip, #gp-painel .gp-inv-card').forEach(function(chip){
                         var alvos = document.querySelectorAll(alvoDoChip(chip));
                         var algum = Array.prototype.some.call(alvos, function(c){ return c.checked; });
                         chip.classList.toggle('on', algum);
@@ -2102,8 +2129,10 @@ def create_webgis():
     for rid in ordem_regioes:
         for chave, it in (regioes[rid].get('inventario') or {}).get('itens', {}).items():
             tot_inv[chave] = tot_inv.get(chave, 0) + it['count']
+    curto_inv = {'OAE': 'Pontes', 'OAC': 'Bueiros', 'DESCIDA': 'Descida'}
     filtros_inventario = [
-        {'codigo': chave, 'desc': rotulo, 'cor': cor, 'count': fmt(tot_inv[chave])}
+        {'codigo': chave, 'desc': rotulo, 'curto': curto_inv.get(chave, rotulo),
+         'cor': cor, 'count': fmt(tot_inv[chave])}
         for chave, rotulo, cor, _f in INVENTARIO_META if chave in tot_inv
     ]
 
