@@ -1,5 +1,5 @@
 import folium
-from folium.plugins import Fullscreen, MousePosition, MarkerCluster
+from folium.plugins import Fullscreen, MousePosition, MarkerCluster, FastMarkerCluster
 from branca.element import MacroElement, Template
 import geopandas as gpd
 import pandas as pd
@@ -859,6 +859,15 @@ class PainelControle(MacroElement):
                era preciso desligar a regiao para conseguir clicar no resto. */
             .gp-regiao { pointer-events: none !important; }
 
+            /* Ficha do inventário (popup). Os estilos ficam aqui, uma vez só,
+               em vez de repetidos inline em cada um dos ~10 mil marcadores —
+               é o que mais enxuga o tamanho do arquivo. */
+            .pi { font-family:'Inter',sans-serif; font-size:11px; color:#1e293b; }
+            .pi b { display:block; font-weight:700; margin-bottom:4px; }
+            .pi table { border-collapse:collapse; }
+            .pi td:first-child { color:#94a3b8; padding:1px 8px 1px 0; white-space:nowrap; vertical-align:top; }
+            .pi td:last-child { font-weight:600; }
+
             /* Ficha do ponto crítico (popup) */
             .pc { font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif; color:#1e293b; min-width:236px; }
             .pc-top { display:flex; align-items:center; gap:8px; padding-bottom:7px; border-bottom:1px solid #e2e8f0; }
@@ -1671,25 +1680,26 @@ def create_webgis():
                 col_km_inv = next((c for c in gdf.columns if str(c).upper() == 'KM'), None)
 
                 if forma == 'ponto':
-                    # Pontos densos: agrupados em cluster (nao travam o mapa)
-                    cluster = MarkerCluster(options={'maxClusterRadius': 45,
-                                                     'disableClusteringAtZoom': 17})
+                    # Render compacto E com popup por ponto: FastMarkerCluster.
+                    # Os dados vão como um array [lat, lon, html], sem gerar um
+                    # objeto de marcador por ponto (era o que inchava o arquivo).
+                    # O popup é vinculado marcador a marcador no callback, então
+                    # sobrevive ao agrupamento (o GeoJsonPopup, que prende na
+                    # camada inteira, se perdia dentro do cluster).
+                    callback = (
+                        "function(row){var m=L.circleMarker(L.latLng(row[0],row[1]),"
+                        "{radius:4,color:'#ffffff',weight:1,fillColor:'" + cor_inv +
+                        "',fillOpacity:0.95});if(row[2])m.bindPopup(row[2],{maxWidth:280});return m;}"
+                    )
+                    dados = []
                     for _, linha in gdf.iterrows():
-                        if linha.geometry is None or linha.geometry.is_empty:
-                            continue
+                        g = linha.geometry
                         campos = ''.join(
-                            f'<tr><td style="color:#94a3b8;padding:1px 8px 1px 0">{_html.escape(str(c))}</td>'
-                            f'<td style="font-weight:600">{_html.escape(str(linha[c]))}</td></tr>'
+                            f'<tr><td>{_html.escape(str(c))}</td><td>{_html.escape(str(linha[c]))}</td></tr>'
                             for c in cols if linha[c] is not None and str(linha[c]).strip() not in ('', 'nan', 'None'))
-                        html = (f'<div style="font-family:Inter,sans-serif;font-size:11px">'
-                                f'<div style="font-weight:700;color:{cor_inv};margin-bottom:4px">{_html.escape(rotulo)}</div>'
+                        html = (f'<div class="pi"><b style="color:{cor_inv}">{_html.escape(rotulo)}</b>'
                                 f'<table>{campos}</table></div>')
-                        folium.CircleMarker(
-                            location=[linha.geometry.y, linha.geometry.x],
-                            radius=4, color='#ffffff', weight=1,
-                            fill_color=cor_inv, fill_opacity=0.95,
-                            popup=folium.Popup(html, max_width=280),
-                        ).add_to(cluster)
+                        dados.append([round(g.y, 6), round(g.x, 6), html])
 
                         if chave == 'OAE':
                             sre_v = js_safe(linha[col_sre_inv]) if col_sre_inv else ''
@@ -1698,10 +1708,13 @@ def create_webgis():
                                 'sre': f'Ponte {sre_v}'.strip() if sre_v else 'Ponte',
                                 'rod': f'km {km_v}' if km_v else '',
                                 'cid': sre_v,     # permite achar pelo código SRE
-                                'b': (f'{linha.geometry.y:.6f},{linha.geometry.x:.6f},'
-                                      f'{linha.geometry.y:.6f},{linha.geometry.x:.6f}'),
+                                'b': f'{g.y:.6f},{g.x:.6f},{g.y:.6f},{g.x:.6f}',
                             })
-                    cluster.add_to(fg)
+
+                    FastMarkerCluster(
+                        data=dados, callback=callback,
+                        options={'maxClusterRadius': 45, 'disableClusteringAtZoom': 17},
+                    ).add_to(fg)
                 else:
                     # Linhas: GeoJson direto (linhas nao agrupam)
                     popup = (folium.GeoJsonPopup(fields=cols, aliases=cols, localize=True)
