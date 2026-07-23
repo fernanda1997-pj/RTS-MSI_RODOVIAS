@@ -578,7 +578,8 @@ class PainelControle(MacroElement):
 
     def __init__(self, basemaps, default_base, regioes, contexto,
                  filtros_situacao, subtitulo, logo=None, downloads=None,
-                 filtros_criticos=None, filtros_inventario=None):
+                 filtros_criticos=None, filtros_inventario=None,
+                 prop_situacao=None, donut_criticos=None):
         super().__init__()
         self._name = 'PainelControle'
         self.basemaps = basemaps
@@ -588,6 +589,8 @@ class PainelControle(MacroElement):
         self.filtros_situacao = filtros_situacao
         self.filtros_criticos = filtros_criticos or []
         self.filtros_inventario = filtros_inventario or []
+        self.prop_situacao = prop_situacao or {}
+        self.donut_criticos = donut_criticos or {}
         self.downloads = downloads or []
         self.subtitulo = subtitulo
         self.logo = logo
@@ -672,8 +675,29 @@ class PainelControle(MacroElement):
             /* Chips de filtro (situação, pontos críticos, inventário) */
             #gp-painel .gp-filtro-tit { font-size:9px; font-weight:700; letter-spacing:0.04em;
                 text-transform:uppercase; color:#94a3b8; margin:11px 0 5px; }
-            #gp-painel .gp-filtro-tit span { font-weight:500; text-transform:none; letter-spacing:0; color:#cbd5e1; }
+            #gp-painel .gp-filtro-tit span { font-weight:600; text-transform:none; letter-spacing:0; color:#64748b; }
             #gp-painel .gp-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:0; }
+            #gp-painel .gp-chip i { font-style:normal; font-weight:600; opacity:0.6; margin-left:1px; }
+
+            /* Barra de proporção (Situação dos trechos) */
+            #gp-painel .gp-prop { display:flex; height:9px; border-radius:5px; overflow:hidden;
+                margin:0 0 8px; background:#f1f5f9; }
+            #gp-painel .gp-prop-seg { height:100%; transition:opacity .15s, filter .15s; }
+            #gp-painel .gp-prop-seg.off { opacity:0.18; filter:grayscale(1); }
+
+            /* Rosca (Pontos críticos) */
+            #gp-painel .gp-donut { display:flex; align-items:center; gap:13px; margin-bottom:2px; }
+            #gp-painel .gp-donut-svg { width:76px; height:76px; flex:0 0 auto; transform:rotate(-90deg); }
+            #gp-painel .gp-donut-seg { transition:opacity .15s; }
+            #gp-painel .gp-donut-seg.off { opacity:0.15; }
+            #gp-painel .gp-donut-num { transform:rotate(90deg); transform-origin:21px 21px; text-anchor:middle;
+                font:700 7px 'Inter',sans-serif; fill:#0f172a; }
+            #gp-painel .gp-donut-cap { transform:rotate(90deg); transform-origin:21px 21px; text-anchor:middle;
+                font:500 3.4px 'Inter',sans-serif; fill:#94a3b8; }
+            #gp-painel .gp-donut-leg { flex:1; display:flex; flex-direction:column; gap:3px; }
+            #gp-painel .gp-chip-row { width:100%; justify-content:flex-start; border-radius:7px !important; }
+            #gp-painel .gp-chip-row .gp-cr-nome { flex:1; text-align:left; }
+            #gp-painel .gp-chip-row b { margin-left:auto; }
             #gp-painel .gp-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 7px;
                 border:1px solid #e2e8f0; border-radius:20px; background:#fff; cursor:pointer;
                 font-family:inherit; font-size:9.5px; font-weight:700; color:#cbd5e1;
@@ -1097,19 +1121,37 @@ class PainelControle(MacroElement):
                     <button id="gp-limpar" type="button" aria-label="Limpar busca">&times;</button>
                 </div>
                 <div id="gp-resultados"></div>
-                <div class="gp-filtro-tit">Situação dos trechos</div>
+                <div class="gp-filtro-tit">Situação dos trechos <span>{{ this.prop_situacao.total }}</span></div>
+                <div class="gp-prop" title="Proporção dos trechos por situação">
+                    {% for f in this.filtros_situacao %}
+                    <span class="gp-prop-seg" data-sit="{{ f.codigo }}" style="width:{{ f.pct }}%; background:{{ f.cor }}" title="{{ f.codigo }} · {{ f.pct }}%"></span>
+                    {% endfor %}
+                </div>
                 <div class="gp-chips">
                     {% for f in this.filtros_situacao %}
-                    <button type="button" class="gp-chip on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }}">{{ f.codigo }} <b>{{ f.count }}</b></button>
+                    <button type="button" class="gp-chip on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }} · {{ f.count }} ({{ f.pct }}%)">{{ f.codigo }} <b>{{ f.count }}</b><i>{{ f.pct }}%</i></button>
                     {% endfor %}
                 </div>
 
                 {% if this.filtros_criticos %}
-                <div class="gp-filtro-tit">Pontos críticos</div>
-                <div class="gp-chips">
-                    {% for f in this.filtros_criticos %}
-                    <button type="button" class="gp-chip on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.desc }}">{{ f.codigo }} <b>{{ f.count }}</b></button>
-                    {% endfor %}
+                <div class="gp-filtro-tit">Pontos críticos <span>{{ this.donut_criticos.total }}</span></div>
+                <div class="gp-donut">
+                    <svg class="gp-donut-svg" viewBox="0 0 42 42" role="img" aria-label="Composição dos pontos críticos">
+                        {% for s in this.donut_criticos.segmentos %}
+                        <circle class="gp-donut-seg" data-seg="{{ s.sit }}" cx="21" cy="21" r="15.915" fill="none"
+                                stroke="{{ s.cor }}" stroke-width="5.5"
+                                stroke-dasharray="{{ s.dash }} {{ s.gap }}" stroke-dashoffset="{{ s.off }}"/>
+                        {% endfor %}
+                        <text x="21" y="20.5" class="gp-donut-num">{{ this.donut_criticos.total }}</text>
+                        <text x="21" y="25.6" class="gp-donut-cap">pontos</text>
+                    </svg>
+                    <div class="gp-donut-leg">
+                        {% for f in this.filtros_criticos %}
+                        <button type="button" class="gp-chip gp-chip-row on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.count }} pontos">
+                            <span class="gp-cr-nome">{{ f.desc }}</span><b>{{ f.pct }}%</b>
+                        </button>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
 
@@ -1503,7 +1545,7 @@ class PainelControle(MacroElement):
                             aplicar(c);
                             sincronizarPais(c.getAttribute('data-regiao'), c.getAttribute('data-grupo'));
                         });
-                        setTimeout(pintarTudo, 0);
+                        setTimeout(function(){ pintarTudo(); sincronizarChips(); }, 0);
                     });
                 });
 
@@ -1513,6 +1555,14 @@ class PainelControle(MacroElement):
                         var alvos = document.querySelectorAll(alvoDoChip(chip));
                         var algum = Array.prototype.some.call(alvos, function(c){ return c.checked; });
                         chip.classList.toggle('on', algum);
+                        // Reflete o estado na barra de proporção e na rosca
+                        var sit = chip.getAttribute('data-sit');
+                        if (sit) {
+                            document.querySelectorAll('#gp-painel .gp-prop-seg[data-sit="' + sit + '"],'
+                                + ' #gp-painel .gp-donut-seg[data-seg="' + sit + '"]').forEach(function(seg){
+                                seg.classList.toggle('off', !algum);
+                            });
+                        }
                     });
                 }
                 document.querySelectorAll('#gp-painel input[type="checkbox"]').forEach(function(c){
@@ -2015,23 +2065,37 @@ def create_webgis():
         logo_uri = 'data:image/png;base64,' + base64.b64encode(logo_path.read_bytes()).decode('ascii')
 
     # ---------------- Filtros globais (valem para TODAS as regiões) ----------
-    # Situação dos trechos
+    # Situação dos trechos — com % (proporção do total de trechos)
+    total_sit = sum(total_situacao.values()) or 1
     filtros_situacao = []
     for cod in ordenar_situacoes(total_situacao.keys()):
         desc, cor = info_situacao(cod)
+        n = total_situacao[cod]
         filtros_situacao.append({'codigo': cod, 'desc': desc, 'cor': cor,
-                                 'count': fmt(total_situacao[cod])})
+                                 'count': fmt(n), 'pct': round(n / total_sit * 100)})
+    prop_situacao = {'total': fmt(total_sit)}
 
-    # Status dos pontos críticos (somando as regiões)
+    # Status dos pontos críticos — vira ROSCA (donut). Além dos chips, calculo
+    # os segmentos do círculo (dasharray/offset numa circunferência de 100).
     tot_pc = {}
     for rid in ordem_regioes:
         item = regioes[rid].get('criticos')
         for s in (item or {}).get('situacoes', []):
             tot_pc[s['codigo']] = tot_pc.get(s['codigo'], 0) + s['count']
-    filtros_criticos = [
-        {'codigo': cod, 'desc': cod, 'cor': _status_pc(cod)[1], 'count': fmt(tot_pc[cod])}
-        for cod in ORDEM_STATUS_PC if cod in tot_pc
-    ]
+    total_pc = sum(tot_pc.values()) or 1
+    filtros_criticos, segs_pc, acumulado = [], [], 0.0
+    for cod in ORDEM_STATUS_PC:
+        if cod not in tot_pc:
+            continue
+        n = tot_pc[cod]
+        cor = _status_pc(cod)[1]
+        pct = n / total_pc * 100
+        filtros_criticos.append({'codigo': cod, 'desc': cod, 'cor': cor,
+                                 'count': fmt(n), 'pct': round(pct)})
+        segs_pc.append({'sit': cod, 'cor': cor, 'dash': round(pct, 2),
+                        'gap': round(100 - pct, 2), 'off': round(25 - acumulado, 2)})
+        acumulado += pct
+    donut_criticos = {'segmentos': segs_pc, 'total': fmt(total_pc)}
 
     # Inventário por tipo (somando as regiões)
     tot_inv = {}
@@ -2051,7 +2115,9 @@ def create_webgis():
         regioes=regioes_info,
         contexto=contexto_info,
         filtros_situacao=filtros_situacao,
+        prop_situacao=prop_situacao,
         filtros_criticos=filtros_criticos,
+        donut_criticos=donut_criticos,
         filtros_inventario=filtros_inventario,
         downloads=catalogo,
         subtitulo='WebGIS · Inventário Rodoviário — Tocantins',
