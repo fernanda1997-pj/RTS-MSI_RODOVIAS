@@ -11,8 +11,86 @@ import sys
 import math
 import unicodedata
 import html as _html
+from datetime import datetime
 
 warnings.filterwarnings('ignore')  # Ignorar avisos do geopandas
+
+# ---------------------------------------------------------------------------
+# RELATÓRIO DE QUALIDADE DOS DADOS
+# Cada verificação registra seus achados aqui. No fim da geração, tudo sai
+# consolidado no console e num arquivo relatorio_qualidade.txt, agrupado por
+# tipo de problema e ordenado por gravidade — pronto para corrigir na fonte.
+# ---------------------------------------------------------------------------
+QA_ACHADOS = []          # {gravidade, categoria, regiao, camada, msg}
+QA_CAMADAS = set()       # camadas que passaram por alguma verificação
+
+def _regiao_de(nome):
+    """Extrai 'R2' de nomes como 'R2_TRECHOS', 'OAC_R11'. '' se não achar."""
+    m = re.search(r'\bR\d+\b', str(nome).upper())
+    return m.group(0) if m else ''
+
+def qa(gravidade, categoria, msg, regiao='', camada=''):
+    """Registra um achado. gravidade: 'ALTA', 'MÉDIA' ou 'INFO'."""
+    if camada:
+        QA_CAMADAS.add(camada)
+    if not regiao and camada:
+        regiao = _regiao_de(camada)
+    QA_ACHADOS.append({'gravidade': gravidade, 'categoria': categoria,
+                       'regiao': regiao, 'camada': str(camada), 'msg': msg})
+
+def _ordem_regiao(r):
+    m = re.search(r'\d+', r or '')
+    return (0, int(m.group())) if m else (1, 0)
+
+def emitir_relatorio_qualidade(base_dir):
+    """Consolida os achados no console e salva relatorio_qualidade.txt.
+    Devolve o nº de ocorrências de gravidade ALTA (para o .bat, se quiser)."""
+    ordem_grav = {'ALTA': 0, 'MÉDIA': 1, 'INFO': 2}
+    n_alta = sum(1 for a in QA_ACHADOS if a['gravidade'] == 'ALTA')
+    n_media = sum(1 for a in QA_ACHADOS if a['gravidade'] == 'MÉDIA')
+
+    L = []
+    L.append('=' * 64)
+    L.append('  RELATÓRIO DE QUALIDADE DOS DADOS')
+    L.append('  Gerado em ' + datetime.now().strftime('%d/%m/%Y %H:%M'))
+    L.append('=' * 64)
+    L.append('')
+    if not QA_ACHADOS:
+        L.append('  Nenhuma ocorrência encontrada. Dados OK.')
+    else:
+        L.append(f'  Resumo: {n_alta + n_media} ocorrência(s) '
+                 f'({n_alta} ALTA, {n_media} MÉDIA) em '
+                 f'{len(QA_CAMADAS)} camada(s) verificada(s).')
+        L.append('')
+        L.append('  [ALTA]  corrigir antes de publicar (perda de dado ou erro).')
+        L.append('  [MÉDIA] vale conferir na fonte quando puder.')
+        L.append('')
+        # Agrupa por categoria; dentro, ordena por gravidade e região.
+        categorias = {}
+        for a in QA_ACHADOS:
+            categorias.setdefault(a['categoria'], []).append(a)
+        # Ordena as categorias pela pior gravidade que contêm.
+        def pior(cat):
+            return min(ordem_grav.get(a['gravidade'], 9) for a in categorias[cat])
+        for cat in sorted(categorias, key=lambda c: (pior(c), c)):
+            itens = sorted(categorias[cat],
+                           key=lambda a: (ordem_grav.get(a['gravidade'], 9),
+                                          _ordem_regiao(a['regiao'])))
+            L.append('── ' + cat + ' ' + '─' * max(0, 54 - len(cat)))
+            for a in itens:
+                loc = a['camada'] or a['regiao'] or '—'
+                L.append(f'  [{a["gravidade"]}] {loc:<18} {a["msg"]}')
+            L.append('')
+    L.append('=' * 64)
+    texto = '\n'.join(L)
+
+    print('\n' + texto)
+    try:
+        (base_dir / 'relatorio_qualidade.txt').write_text(texto, encoding='utf-8')
+        print(f"Relatório salvo em: {base_dir / 'relatorio_qualidade.txt'}")
+    except Exception as e:
+        print(f"  Aviso: não consegui salvar o relatório de qualidade: {e}")
+    return n_alta
 
 # --------------------------------------------------- pontos críticos
 # Planilha de controle: uma aba por região, com o status de cada ponto mês a
@@ -221,11 +299,20 @@ def validar_nomenclatura_sre(gdf, nome_camada):
         if n_vazios > 0:
             print(f"  [QUALIDADE] '{nome_camada}' -> '{col}': "
                   f"{n_vazios} de {total} registro(s) com SRE VAZIO.")
+            qa('MÉDIA', 'SRE vazio',
+               f"{n_vazios} de {total} registro(s) sem código SRE (coluna '{col}').",
+               camada=nome_camada)
         preenchidos = serie[~vazios]
         duplicados = preenchidos[preenchidos.duplicated(keep=False)]
         if len(duplicados) > 0:
+            lista = ', '.join(sorted(set(duplicados.astype(str))))
             print(f"  [QUALIDADE] '{nome_camada}' -> '{col}': "
-                  f"SRE DUPLICADO(S): {', '.join(sorted(set(duplicados.astype(str))))}")
+                  f"SRE DUPLICADO(S): {lista}")
+            qa('ALTA', 'SRE duplicado',
+               f"código(s) repetido(s): {lista} (coluna '{col}').",
+               camada=nome_camada)
+        else:
+            QA_CAMADAS.add(nome_camada)   # camada verificada, sem duplicata
         if n_vazios == 0 and len(duplicados) == 0:
             print(f"  [QUALIDADE] '{nome_camada}' -> '{col}': OK ({total} registros).")
 
@@ -452,6 +539,9 @@ def normalizar_extensao(gdf, nome_arquivo):
         else:
             print(f"  [QUALIDADE] '{nome_arquivo}': '{col}' não bate com a "
                   f"geometria (razão {razao:.2f}x). Extensão não exportada.")
+            qa('MÉDIA', 'Extensão inconsistente',
+               f"coluna '{col}' não bate com o comprimento real (razão {razao:.2f}x); "
+               f"extensão não exportada.", camada=nome_arquivo)
             return gdf
         gdf = gdf.drop(columns=[col])
     except Exception as e:
@@ -1839,6 +1929,9 @@ def create_webgis():
                     certo = INVENTARIO_APELIDOS[chave]
                     print(f"  [NOME] '{nome}' parece erro de digitação de "
                           f"'{certo}_{rid}'. Tratando como {certo} — vale renomear o arquivo.")
+                    qa('MÉDIA', 'Nome de arquivo fora do padrão',
+                       f"'{nome}' parece erro de digitação de '{certo}_{rid}'; "
+                       f"vale renomear.", regiao=rid, camada=nome)
                     chave = certo
                 meta = next((m for m in INVENTARIO_META if m[0] == chave), None)
                 if meta is None:
@@ -1853,6 +1946,10 @@ def create_webgis():
                 if n_ruins:
                     print(f"  [QUALIDADE] {nome}: {n_ruins} feição(ões) com coordenada "
                           f"inválida descartada(s).")
+                    qa('ALTA', 'Coordenada inválida',
+                       f"{n_ruins} de {n_antes} feição(ões) com coordenada inválida "
+                       f"(NaN/fora de faixa) — descartada(s) do mapa.",
+                       regiao=rid, camada=nome)
                 if len(gdf) == 0:
                     print(f"  Aviso: {nome} ficou sem feições válidas. Ignorada.")
                     continue
@@ -2043,6 +2140,9 @@ def create_webgis():
                 regioes.setdefault(rid, {})['criticos'] = {'count': len(gdf), 'situacoes': grupos}
                 if sem_ficha:
                     print(f"  [QUALIDADE] {rid}: {sem_ficha} ponto(s) crítico(s) sem ficha na planilha.")
+                    qa('MÉDIA', 'Ponto crítico sem ficha',
+                       f"{sem_ficha} ponto(s) crítico(s) sem ficha na planilha de controle.",
+                       regiao=rid, camada=nome)
                 print(f"  '{nome}' -> {rid} / criticos ({len(gdf)} pontos em "
                       f"{len(grupos)} status: "
                       f"{', '.join(g['codigo'] + '=' + str(g['count']) for g in grupos)})")
@@ -2287,6 +2387,8 @@ def create_webgis():
     print(f"\nMapa salvo em: {output_file}")
     print(f"Regiões: {ordem_regioes}")
     print(f"Situação (total): {dict(sorted(total_situacao.items(), key=lambda kv: -kv[1]))}")
+
+    emitir_relatorio_qualidade(base_dir)
 
 
 if __name__ == "__main__":

@@ -40,9 +40,18 @@ if errorlevel 1 goto :erro_git
 echo.
 git diff --stat --shortstat 2>nul
 echo.
-echo  ^>^> Leia acima as linhas [QUALIDADE]: elas apontam SRE
-echo     vazio ou duplicado. Vale conferir antes de publicar.
+echo  ^>^> Role um pouco para cima ate o "RELATORIO DE QUALIDADE
+echo     DOS DADOS": ele lista, agrupado por tipo, tudo que vale
+echo     conferir (SRE duplicado, coordenada invalida, etc).
+echo     O mesmo relatorio fica salvo em relatorio_qualidade.txt.
+echo     [ALTA] = corrigir antes de publicar.
 echo.
+if exist "relatorio_qualidade.txt" (
+    set "VERREL="
+    set /p "VERREL=Abrir o relatorio de qualidade num bloco de notas? (S = sim / Enter = pular): "
+    if /i "%VERREL%"=="S" start "" "relatorio_qualidade.txt"
+    echo.
+)
 
 echo ==========================================================
 echo  [3/4]  Conferir antes de publicar

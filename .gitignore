@@ -28,6 +28,10 @@ camadas/hidrografia_estado_1.*
 # Duplicata (erro de digitação) de estado_tocantins
 camadas/esatado_tocantins.*
 
+# Relatório de qualidade: diagnóstico local, regerado a cada rodada
+# (tem carimbo de data/hora, então mudaria em todo commit sem necessidade).
+relatorio_qualidade.txt
+
 # Sistema
 .DS_Store
 Thumbs.db
