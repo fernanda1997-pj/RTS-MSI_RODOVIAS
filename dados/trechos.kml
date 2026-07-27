@@ -3416,7 +3416,7 @@
 		<SimpleData name="Id">259</SimpleData>
 		<SimpleData name="REGIÃO">13</SimpleData>
 		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
-		<SimpleData name="SRE">110ETO0292D 192D</SimpleData>
+		<SimpleData name="SRE">110ETO0292E</SimpleData>
 		<SimpleData name="RODOVIA">TO-110</SimpleData>
 		<SimpleData name="SEGMENTO">INÍCIO DUPLICAÇÃO(PU AURORA DO TOCANTINS) - FIM DUPLICAÇÃO(PU AURORA DO TOCANTINS)</SimpleData>
 		<SimpleData name="EXT_KM">0.291</SimpleData>

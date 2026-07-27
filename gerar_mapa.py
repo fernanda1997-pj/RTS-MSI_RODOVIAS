@@ -1,6 +1,7 @@
 import folium
-from folium.plugins import Fullscreen, MousePosition, MarkerCluster, FastMarkerCluster
-from branca.element import MacroElement, Template
+from folium.plugins import (Fullscreen, MousePosition, MarkerCluster,
+                            FastMarkerCluster, MeasureControl)
+from branca.element import MacroElement, Template, Element
 import geopandas as gpd
 import pandas as pd
 from pathlib import Path
@@ -1067,7 +1068,63 @@ class PainelControle(MacroElement):
                 .gp-abrir { display:flex; }
                 .gp-abrir.escondido { display:none; }
             }
+
+            /* ---- Mini-legenda de situação (canto inferior esquerdo) ---- */
+            /* Só aparece na impressão/PDF (na tela o painel já traz tudo). */
+            #gp-legenda { display:none; position:absolute; left:12px; bottom:24px; z-index:850;
+                font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                background:rgba(255,255,255,0.94);
+                -webkit-backdrop-filter:blur(10px) saturate(1.2); backdrop-filter:blur(10px) saturate(1.2);
+                border:1px solid rgba(0,0,0,0.08); border-radius:11px;
+                box-shadow:0 4px 18px rgba(0,0,0,0.16); padding:9px 11px 8px; max-width:186px; }
+            #gp-legenda .gp-leg-h { display:flex; align-items:center; gap:6px;
+                font-size:8.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+                color:#94a3b8; margin-bottom:7px; }
+            #gp-legenda .gp-leg-h span { flex:1; }
+            #gp-legenda .gp-leg-tog { cursor:pointer; width:14px; height:14px; flex:0 0 auto;
+                color:#94a3b8; transition:transform .18s, color .12s; }
+            #gp-legenda .gp-leg-tog:hover { color:#1E3A72; }
+            #gp-legenda.recolhida .gp-leg-tog { transform:rotate(-90deg); }
+            #gp-legenda.recolhida .gp-leg-body { display:none; }
+            #gp-legenda .gp-leg-row { display:flex; align-items:center; gap:7px; padding:2px 0;
+                font-size:10px; color:#334155; line-height:1.25; }
+            #gp-legenda .gp-leg-sw { width:15px; height:4px; border-radius:2px; flex:0 0 auto; }
+            #gp-legenda .gp-leg-cod { font-weight:700; color:#1e293b; }
+
+            /* ---- Botões flutuantes (imprimir / copiar link) ---- */
+            .gp-ferramentas { border:none !important; box-shadow:none !important; background:none !important; }
+            .gp-ferramentas .gp-ferr-bt { display:flex; align-items:center; justify-content:center;
+                width:34px; height:34px; background:#fff; color:#1E3A72;
+                border-radius:8px; box-shadow:0 1px 5px rgba(0,0,0,0.28); margin-bottom:7px;
+                cursor:pointer; transition:background .12s, color .12s; }
+            .gp-ferramentas .gp-ferr-bt:hover { background:#1E3A72; color:#fff; }
+            .gp-ferramentas .gp-ferr-bt.ok { background:#059669; color:#fff; }
+            .gp-ferramentas .gp-ferr-bt svg { width:18px; height:18px; }
+
+            /* ---- Impressão / exportar PDF: só o mapa + legenda ---- */
+            @media print {
+                @page { size: landscape; margin: 8mm; }
+                html, body, .folium-map, .leaflet-container { width:100% !important; height:100% !important; }
+                .leaflet-control-container, .gp-abrir, #gp-loading { display:none !important; }
+                #gp-legenda { display:block !important; box-shadow:none; border:1px solid #cbd5e1;
+                    background:#fff; -webkit-backdrop-filter:none; backdrop-filter:none; }
+                #gp-legenda .gp-leg-tog { display:none; }   /* sem o botão de recolher no papel */
+                #gp-legenda .gp-leg-body { display:block !important; }
+                .leaflet-container { background:#fff !important; }
+            }
         </style>
+
+        <div id="gp-legenda">
+            <div class="gp-leg-h">
+                <span>Situação dos trechos</span>
+                <svg class="gp-leg-tog" viewBox="0 0 24 24" fill="none" title="Recolher/expandir"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="gp-leg-body">
+                {% for f in this.filtros_situacao %}
+                <div class="gp-leg-row"><span class="gp-leg-sw" style="background:{{ f.cor }}"></span><span class="gp-leg-cod">{{ f.codigo }}</span>{% if f.desc %}<span>{{ f.desc }}</span>{% endif %}</div>
+                {% endfor %}
+            </div>
+        </div>
 
         <div id="gp-painel">
             <div class="gp-alca"></div>
@@ -1099,7 +1156,7 @@ class PainelControle(MacroElement):
                 <div class="gp-bases">
                     {% for b in this.basemaps %}
                     <label class="gp-base-card" title="{{ b.nome }}">
-                        <input type="radio" name="gp-base" value="{{ b.layer.get_name() }}" {% if b.layer.get_name() == this.default_base.get_name() %}checked{% endif %}>
+                        <input type="radio" name="gp-base" value="{{ b.layer.get_name() }}" data-bg="{{ b.nome }}" {% if b.layer.get_name() == this.default_base.get_name() %}checked{% endif %}>
                         <span class="gp-base-in">
                             {% if b.icone == 'mapa' %}
                             <svg viewBox="0 0 24 24" fill="none"><path d="M9 3L3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 3v15M15 5.5v15" stroke="currentColor" stroke-width="1.7"/></svg>
@@ -1152,7 +1209,7 @@ class PainelControle(MacroElement):
                                 <div class="gp-sit">
                                     <div class="gp-sit-head">
                                         <svg class="gp-chev3" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                        <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-sit="{{ s.codigo }}" data-camada="{{ s.layer.get_name() }}" checked>
+                                        <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-sit="{{ s.codigo }}" data-camada="{{ s.layer.get_name() }}" data-key="{{ it.grupo }}~{{ s.codigo }}" checked>
                                         <span class="sw linha-xs" style="--c: {{ s.cor }}"></span>
                                         <span class="gp-sit-txt">
                                             <span class="gp-sit-cod">{{ s.codigo }}</span>
@@ -1189,7 +1246,7 @@ class PainelControle(MacroElement):
                             <div class="gp-tre-body">
                                 {% for sc in it.subitens %}
                                 <div class="gp-sub-item">
-                                    <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-inv="{{ sc.chave }}" data-camada="{{ sc.layer.get_name() }}">
+                                    <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-inv="{{ sc.chave }}" data-camada="{{ sc.layer.get_name() }}" data-key="{{ it.grupo }}~{{ sc.chave }}">
                                     <span class="sw {{ sc.forma }}" style="--c: {{ sc.cor }}"></span>
                                     <span class="gp-sub-lbl">{{ sc.nome }}</span>
                                     <span class="gp-cnt">{{ sc.count }}</span>
@@ -1203,7 +1260,7 @@ class PainelControle(MacroElement):
                         </div>
                         {% else %}
                         <div class="gp-sub-item">
-                            <input type="checkbox" data-regiao="{{ reg.id }}" data-camada="{{ it.layer.get_name() }}" checked>
+                            <input type="checkbox" data-regiao="{{ reg.id }}" data-camada="{{ it.layer.get_name() }}" data-key="{{ reg.id }}~{{ it.nome }}" checked>
                             <span class="sw {{ it.forma }}" style="--c: {{ it.cor }}"></span>
                             <span class="gp-sub-lbl">{{ it.nome }}</span>
                             <span class="gp-cnt">{{ it.count }}</span>
@@ -1227,7 +1284,7 @@ class PainelControle(MacroElement):
                 </div>
                 {% for c in this.contexto %}
                 <div class="gp-sub-item">
-                    <input type="checkbox" data-camada="{{ c.layer.get_name() }}" {% if c.ativo %}checked{% endif %}>
+                    <input type="checkbox" data-camada="{{ c.layer.get_name() }}" data-key="ctx~{{ c.nome }}" {% if c.ativo %}checked{% endif %}>
                     <span class="sw {{ c.forma }}" style="--c: {{ c.cor }}"></span>
                     <span class="gp-sub-lbl">{{ c.nome }}</span>
                     <span class="gp-cnt">{{ c.count }}</span>
@@ -1824,6 +1881,176 @@ class PainelControle(MacroElement):
                         pintarRegiao(rid);   // apaga (ou reacende) o bloco da região
                     });
                 });
+
+                // ==================== FERRAMENTAS EXTRAS ====================
+                var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+                var ICON_LINK = '<svg viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.07 0l2-2a5 5 0 00-7.07-7.07l-1.1 1.1M14 11a5 5 0 00-7.07 0l-2 2a5 5 0 007.07 7.07l1.1-1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+                var ICON_OK = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+                // -- Overlay de carregamento: some quando o mapa fica pronto --
+                var loadEl = document.getElementById('gp-loading');
+                function esconderLoading(){
+                    if (!loadEl) return;
+                    loadEl.classList.add('oculto');
+                    var el = loadEl; loadEl = null;
+                    setTimeout(function(){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 600);
+                }
+                map.whenReady(function(){ setTimeout(esconderLoading, 300); });
+                setTimeout(esconderLoading, 8000);   // rede de segurança
+
+                // -- Mini-legenda: leva para dentro do mapa (aparece em tela cheia) --
+                var legEl = document.getElementById('gp-legenda');
+                if (legEl) {
+                    map.getContainer().appendChild(legEl);
+                    var legH = legEl.querySelector('.gp-leg-h');
+                    if (legH) legH.addEventListener('click', function(){ legEl.classList.toggle('recolhida'); });
+                    L.DomEvent.disableClickPropagation(legEl);
+                }
+
+                // -- Botões flutuantes: imprimir + copiar link --
+                var Ferramentas = L.Control.extend({
+                    options: { position: 'topright' },
+                    onAdd: function(){
+                        var c = L.DomUtil.create('div', 'leaflet-bar gp-ferramentas');
+                        var bp = L.DomUtil.create('a', 'gp-ferr-bt', c);
+                        bp.href = '#'; bp.title = 'Imprimir / salvar em PDF';
+                        bp.setAttribute('role', 'button'); bp.innerHTML = ICON_PRINT;
+                        var bl = L.DomUtil.create('a', 'gp-ferr-bt', c);
+                        bl.href = '#'; bl.title = 'Copiar link desta vista';
+                        bl.setAttribute('role', 'button'); bl.innerHTML = ICON_LINK;
+                        L.DomEvent.disableClickPropagation(c);
+                        L.DomEvent.on(bp, 'click', function(e){ L.DomEvent.stop(e); window.print(); });
+                        L.DomEvent.on(bl, 'click', function(e){ L.DomEvent.stop(e); copiarLink(bl); });
+                        return c;
+                    }
+                });
+                new Ferramentas().addTo(map);
+
+                // Ao imprimir, a folha tem proporção diferente da tela; sem isto o
+                // Leaflet mantém o tamanho antigo e o trecho sai deslocado/cortado.
+                // Recentramos no mesmo ponto/zoom já com o layout da folha ativo.
+                var imprCentro = null, imprZoom = null;
+                window.addEventListener('beforeprint', function(){
+                    imprCentro = map.getCenter(); imprZoom = map.getZoom();
+                    map.invalidateSize({ animate: false });
+                    map.setView(imprCentro, imprZoom, { animate: false });
+                });
+                window.addEventListener('afterprint', function(){
+                    map.invalidateSize({ animate: false });
+                    if (imprCentro) map.setView(imprCentro, imprZoom, { animate: false });
+                });
+
+                // -- Régua (leaflet-measure) em português --
+                (function traduzirRegua(){
+                    var mc = document.querySelector('.leaflet-control-measure');
+                    if (!mc) return;
+                    var dic = {
+                        'Measure': 'Medir',
+                        'Measure distances and areas': 'Medir distâncias e áreas',
+                        'Create a new measurement': 'Nova medição',
+                        'Start creating a measurement by adding points to the map': 'Comece a medir clicando pontos no mapa',
+                        'Finish measurement': 'Concluir',
+                        'Last point': 'Desfazer último ponto',
+                        'Cancel': 'Cancelar',
+                        'Center on this area': 'Centralizar aqui',
+                        'Center on this line': 'Centralizar aqui',
+                        'Center on this location': 'Centralizar aqui',
+                        'Path distance': 'Distância',
+                        'Area': 'Área',
+                        'Perimeter': 'Perímetro',
+                        'Delete': 'Apagar',
+                        'Measurement': 'Medição',
+                        'Last measurement': 'Última medição',
+                        'Results': 'Resultado',
+                        'Points': 'Pontos'
+                    };
+                    function traduz(root){
+                        var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, nos = [];
+                        while ((n = w.nextNode())) nos.push(n);
+                        nos.forEach(function(t){ var s = t.nodeValue.trim();
+                            if (dic[s]) t.nodeValue = t.nodeValue.replace(s, dic[s]); });
+                        root.querySelectorAll('[title]').forEach(function(el){ if (dic[el.title]) el.title = dic[el.title]; });
+                    }
+                    traduz(mc);
+                    new MutationObserver(function(){ traduz(mc); }).observe(mc, { childList: true, subtree: true });
+                })();
+
+                // -- Link compartilhável: monta o estado atual na URL (#hash) --
+                function estadoParaURL(){
+                    var p = new URLSearchParams();
+                    var c = map.getCenter(), z = map.getZoom();
+                    p.set('c', c.lat.toFixed(5) + ',' + c.lng.toFixed(5));
+                    p.set('z', String(z));
+                    var on = [], off = [];
+                    document.querySelectorAll('#gp-painel input[data-camada][data-key]').forEach(function(ch){
+                        var k = ch.getAttribute('data-key');
+                        if (ch.checked && !ch.defaultChecked) on.push(k);
+                        else if (!ch.checked && ch.defaultChecked) off.push(k);
+                    });
+                    if (on.length) p.set('on', on.join(','));
+                    if (off.length) p.set('off', off.join(','));
+                    var br = document.querySelector('input[name="gp-base"]:checked');
+                    if (br && !br.defaultChecked) p.set('bg', br.getAttribute('data-bg'));
+                    return p.toString();
+                }
+                function copiarLink(btn){
+                    var url = location.origin + location.pathname + '#' + estadoParaURL();
+                    function feito(){ btn.classList.add('ok'); btn.innerHTML = ICON_OK;
+                        setTimeout(function(){ btn.classList.remove('ok'); btn.innerHTML = ICON_LINK; }, 1600); }
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(url).then(feito, function(){ window.prompt('Copie o link desta vista:', url); });
+                    } else { window.prompt('Copie o link desta vista:', url); }
+                }
+                // -- Restaura o estado a partir do #hash (link recebido) --
+                (function restaurarDoHash(){
+                    if (!location.hash || location.hash.length < 2) return;
+                    var p; try { p = new URLSearchParams(location.hash.slice(1)); } catch(e){ return; }
+                    if (p.has('on') || p.has('off')) {
+                        var onSet = (p.get('on') || '').split(',').filter(Boolean);
+                        var offSet = (p.get('off') || '').split(',').filter(Boolean);
+                        document.querySelectorAll('#gp-painel input[data-camada][data-key]').forEach(function(ch){
+                            var k = ch.getAttribute('data-key');
+                            var querLigar = ch.defaultChecked;
+                            if (onSet.indexOf(k) >= 0) querLigar = true;
+                            if (offSet.indexOf(k) >= 0) querLigar = false;
+                            if (ch.checked !== querLigar) { ch.checked = querLigar; aplicar(ch); }
+                        });
+                        document.querySelectorAll('#gp-painel input[data-grupo]:not([data-camada])').forEach(function(g){
+                            sincronizarPais(g.getAttribute('data-regiao'), g.getAttribute('data-grupo'));
+                        });
+                        document.querySelectorAll('#gp-painel input[data-regiao]:not([data-camada]):not([data-grupo])').forEach(function(mm){
+                            sincronizarPais(mm.getAttribute('data-regiao'), null);
+                        });
+                        sincronizarChips(); atualizarBotaoLimpar(); pintarTudo(); regioesAoFundo();
+                    }
+                    if (p.has('bg')) {
+                        var alvo = p.get('bg');
+                        document.querySelectorAll('input[name="gp-base"]').forEach(function(r){
+                            if (r.getAttribute('data-bg') === alvo && !r.checked) {
+                                r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        });
+                    }
+                    if (p.has('c') && p.has('z')) {
+                        var cc = p.get('c').split(','), zz = parseInt(p.get('z'), 10);
+                        if (cc.length === 2 && isFinite(+cc[0]) && isFinite(+cc[1]) && isFinite(zz)) {
+                            // O fitBounds inicial do folium sobrepõe um setView único.
+                            // Reaplicamos a vista até ela "grudar" (e então paramos),
+                            // com um teto de tempo. setView puro, sem stop/invalidateSize
+                            // (que podiam lançar durante o init e abortar tudo).
+                            var alvo = [+cc[0], +cc[1]];
+                            var fim = Number(new Date()) + 2500;
+                            var timer = setInterval(function(){
+                                map.setView(alvo, zz, { animate: false });
+                                var cur = map.getCenter();
+                                var ok = Math.abs(cur.lat - alvo[0]) < 0.02
+                                       && Math.abs(cur.lng - alvo[1]) < 0.02
+                                       && map.getZoom() === zz;
+                                if (ok || Number(new Date()) > fim) clearInterval(timer);
+                            }, 80);
+                        }
+                    }
+                })();
             })();
         {% endmacro %}
         """)
@@ -2230,6 +2457,11 @@ def create_webgis():
                title_cancel='Sair da tela cheia', force_separate_button=True).add_to(m)
     MousePosition(position='bottomright', separator=' | ', prefix='Coordenadas:',
                   num_digits=6, lat_first=True).add_to(m)
+    # Régua: medir distância ao longo de um trecho / área
+    MeasureControl(position='topright', primary_length_unit='meters',
+                   secondary_length_unit='kilometers', primary_area_unit='hectares',
+                   secondary_area_unit=None, active_color='#1E3A72',
+                   completed_color='#DC2626').add_to(m)
 
     # 4. Painel
     def fmt(n):
@@ -2383,7 +2615,45 @@ def create_webgis():
         logo2=logo2_uri,
     ))
 
+    # Overlay de carregamento: injetado no TOPO do <body> para aparecer de
+    # imediato (antes dos scripts pesados). O painel o esconde quando o mapa
+    # fica pronto (esconderLoading, por id). Estilos inline p/ não depender do
+    # CSS do painel, que é parseado mais adiante.
+    loading_html = (
+        '<div id="gp-loading" style="position:fixed;inset:0;z-index:100000;'
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+        'gap:15px;background:#0f1f3d;color:#fff;'
+        "font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+        'transition:opacity .5s ease;">'
+        '<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.22);'
+        'border-top-color:#fff;border-radius:50%;animation:gp-rot .8s linear infinite;"></div>'
+        '<div style="font-weight:700;font-size:20px;letter-spacing:0.14em;">RTA &middot; MSI</div>'
+        '<div style="font-size:11.5px;opacity:0.65;letter-spacing:0.04em;">Carregando o mapa&hellip;</div>'
+        '</div>'
+        '<style>@keyframes gp-rot{to{transform:rotate(360deg)}}'
+        '#gp-loading.oculto{opacity:0;pointer-events:none;}</style>'
+    )
+    m.get_root().html.add_child(Element(loading_html), name='gp_loading', index=0)
+
+    # Impede a tradução automática do navegador (ela lê "PSU" como o termo de
+    # informática "Power Supply Unit" e troca por "Fonte de alimentação",
+    # além de embaralhar outros rótulos). Declara o idioma e pede notranslate.
+    m.get_root().header.add_child(Element(
+        '<meta http-equiv="Content-Language" content="pt-BR">'
+        '<meta name="google" content="notranslate">'), name='no_translate')
+
     m.save(output_file)
+
+    # Completa: a tag <html> precisa do lang e translate="no" (o Chrome usa isso
+    # para nem oferecer tradução). O folium gera <html> "pelado".
+    try:
+        _txt = output_file.read_text(encoding='utf-8')
+        if '<html>' in _txt:
+            _txt = _txt.replace('<html>', '<html lang="pt-BR" translate="no">', 1)
+            output_file.write_text(_txt, encoding='utf-8')
+    except Exception as e:
+        print(f"  Aviso: não ajustei a tag <html> para não-traduzir: {e}")
+
     print(f"\nMapa salvo em: {output_file}")
     print(f"Regiões: {ordem_regioes}")
     print(f"Situação (total): {dict(sorted(total_situacao.items(), key=lambda kv: -kv[1]))}")

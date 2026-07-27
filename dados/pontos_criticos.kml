@@ -1863,82 +1863,89 @@
   </Placemark>
   <Placemark id="pontos_criticos.266">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
+		<SimpleData name="Id">11</SimpleData>
+		<SimpleData name="REGIAO">R2</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-48.3279000000103,-6.58319999999981</coordinates></Point>
+  </Placemark>
+  <Placemark id="pontos_criticos.267">
+	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">1</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.843906719985,-7.55260031999963</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.267">
+  <Placemark id="pontos_criticos.268">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">3</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.8420999999851,-7.60459999999963</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.268">
+  <Placemark id="pontos_criticos.269">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">2</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.6798999999902,-7.70729999999977</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.269">
+  <Placemark id="pontos_criticos.270">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">4</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.2412334099973,-8.02416142999994</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.270">
+  <Placemark id="pontos_criticos.271">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">5</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-48.1528749999683,-7.23857199999919</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.271">
+  <Placemark id="pontos_criticos.272">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">6</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.7060944899892,-7.32105650999976</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.272">
+  <Placemark id="pontos_criticos.273">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">7</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.8697662199834,-7.01530963999962</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.273">
+  <Placemark id="pontos_criticos.274">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">8</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.0471239799986,-8.05296148999996</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.274">
+  <Placemark id="pontos_criticos.275">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">9</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.2415646899972,-7.84681906999994</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.275">
+  <Placemark id="pontos_criticos.276">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">11</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.7777833333203,-7.15561666666637</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.276">
+  <Placemark id="pontos_criticos.277">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">10</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
 	</SchemaData></ExtendedData>
       <Point><coordinates>-47.7038999999893,-7.32164999999975</coordinates></Point>
   </Placemark>
-  <Placemark id="pontos_criticos.277">
+  <Placemark id="pontos_criticos.278">
 	<ExtendedData><SchemaData schemaUrl="#pontos_criticos">
 		<SimpleData name="Id">12</SimpleData>
 		<SimpleData name="REGIAO">R3</SimpleData>
