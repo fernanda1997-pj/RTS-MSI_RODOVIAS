@@ -159,6 +159,7 @@ COR_CRITICO = '#ef2b2b'
 # Cores das camadas de contexto (estaduais)
 COR_ESTADO = '#94A3B8'  # slate: legível no satélite E no painel branco
 COR_HIDRO = '#38BDF8'   # azul-céu
+COR_LOCALIDADE = '#9333EA'  # roxo: distinto das situações, críticos e hidro
 
 # Situação dos trechos (códigos oficiais do SRE) -> (descrição, cor).
 # As cores são agrupadas por FAMÍLIA para o mapa se ler à distância:
@@ -670,7 +671,8 @@ class PainelControle(MacroElement):
     def __init__(self, basemaps, default_base, regioes, contexto,
                  filtros_situacao, subtitulo, logo=None, downloads=None,
                  filtros_criticos=None, filtros_inventario=None,
-                 prop_situacao=None, donut_criticos=None, logo2=None):
+                 prop_situacao=None, donut_criticos=None, logo2=None,
+                 localidades_busca=None):
         super().__init__()
         self._name = 'PainelControle'
         self.basemaps = basemaps
@@ -686,6 +688,7 @@ class PainelControle(MacroElement):
         self.subtitulo = subtitulo
         self.logo = logo
         self.logo2 = logo2
+        self.localidades_busca = localidades_busca
         self._template = Template(u"""
         {% macro html(this, kwargs) %}
         <style>
@@ -1091,6 +1094,14 @@ class PainelControle(MacroElement):
             #gp-legenda .gp-leg-sw { width:15px; height:4px; border-radius:2px; flex:0 0 auto; }
             #gp-legenda .gp-leg-cod { font-weight:700; color:#1e293b; }
 
+            /* ---- Rótulos das Localidades (permanentes, aparecem com zoom) ---- */
+            .loc-label { background:rgba(255,255,255,0.82); border:none; box-shadow:none;
+                color:#5b21b6; font-family:'Inter',-apple-system,sans-serif;
+                font-size:9.5px; font-weight:600; padding:0 3px; border-radius:3px;
+                white-space:nowrap; -webkit-text-stroke:0; }
+            .loc-label::before { display:none !important; }   /* sem a setinha do tooltip */
+            .loc-zoom-baixo .loc-label { display:none !important; }  /* some no zoom afastado */
+
             /* ---- Botões flutuantes (imprimir / copiar link) ---- */
             .gp-ferramentas { border:none !important; box-shadow:none !important; background:none !important; }
             .gp-ferramentas .gp-ferr-bt { display:flex; align-items:center; justify-content:center;
@@ -1100,6 +1111,46 @@ class PainelControle(MacroElement):
             .gp-ferramentas .gp-ferr-bt:hover { background:#1E3A72; color:#fff; }
             .gp-ferramentas .gp-ferr-bt.ok { background:#059669; color:#fff; }
             .gp-ferramentas .gp-ferr-bt svg { width:18px; height:18px; }
+
+            /* ---- Exportar imagem: carimbo + janela + modo captura ---- */
+            .exportando .leaflet-control-zoom, .exportando .leaflet-control-fullscreen,
+            .exportando .leaflet-control-measure, .exportando .leaflet-control-mouseposition,
+            .exportando #gp-painel, .exportando .gp-ferramentas, .exportando .gp-abrir {
+                display:none !important; }
+            #gp-carimbo { position:absolute; left:0; right:0; bottom:0; z-index:800;
+                display:flex; align-items:center; gap:14px; padding:9px 16px;
+                background:rgba(255,255,255,0.93); border-top:2px solid #1E3A72;
+                font-family:'Inter',-apple-system,sans-serif; box-sizing:border-box; }
+            #gp-carimbo .gp-carimbo-logos { display:flex; align-items:center; gap:10px; }
+            #gp-carimbo .gp-cl-rta { height:26px; display:block; }
+            #gp-carimbo .gp-cl-msi { height:32px; display:block; mix-blend-mode:multiply; }
+            #gp-carimbo .gp-cl-sep { width:1px; height:24px; background:rgba(0,0,0,0.16); }
+            #gp-carimbo .gp-carimbo-txt { margin-left:auto; text-align:right; }
+            #gp-carimbo .gp-ct-tit { font-size:14px; font-weight:700; color:#0f172a; line-height:1.2; }
+            #gp-carimbo .gp-ct-sub { font-size:10px; font-weight:500; color:#475569; margin-top:1px; }
+
+            .gp-modal-ov { position:fixed; inset:0; z-index:100001; background:rgba(15,31,61,0.45);
+                display:flex; align-items:center; justify-content:center;
+                font-family:'Inter',-apple-system,sans-serif; }
+            .gp-modal { background:#fff; border-radius:14px; width:min(360px,90vw); overflow:hidden;
+                box-shadow:0 20px 60px rgba(0,0,0,0.35); }
+            .gp-modal-h { padding:14px 18px; font-weight:700; font-size:14px; color:#0f172a;
+                border-bottom:1px solid #eef2f7; }
+            .gp-modal-b { padding:16px 18px; }
+            .gp-modal-lbl { display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:6px; }
+            .gp-modal-inp { width:100%; box-sizing:border-box; height:38px; padding:0 12px;
+                border:1px solid #cbd5e1; border-radius:9px; font-size:13px; font-family:inherit; outline:none; }
+            .gp-modal-inp:focus { border-color:#1E3A72; box-shadow:0 0 0 3px rgba(30,58,114,0.1); }
+            .gp-modal-dica { font-size:10.5px; color:#94a3b8; margin-top:8px; line-height:1.4; }
+            .gp-modal-acoes { display:flex; gap:8px; padding:0 18px 16px; }
+            .gp-modal-bt { height:38px; border-radius:9px; border:none; cursor:pointer;
+                font-family:inherit; font-size:12.5px; font-weight:600; transition:filter .12s; }
+            .gp-modal-bt.png, .gp-modal-bt.jpeg { flex:1; color:#fff; }
+            .gp-modal-bt.cancel { background:#f1f5f9; color:#475569; padding:0 14px; }
+            .gp-modal-bt.png { background:#1E3A72; }
+            .gp-modal-bt.jpeg { background:#2563EB; }
+            .gp-modal-bt:hover { filter:brightness(1.08); }
+            .gp-modal-bt[disabled] { opacity:0.6; cursor:default; }
 
             /* ---- Impressão / exportar PDF: só o mapa + legenda ---- */
             @media print {
@@ -1304,7 +1355,7 @@ class PainelControle(MacroElement):
                 </div>
                 <div class="gp-busca-wrap">
                     <svg class="gp-lupa" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                    <input id="gp-busca" type="text" placeholder="SRE, rodovia ou cidade…" autocomplete="off" aria-label="Buscar SRE, rodovia ou cidade">
+                    <input id="gp-busca" type="text" placeholder="SRE, rodovia, cidade ou localidade…" autocomplete="off" aria-label="Buscar SRE, rodovia, cidade ou localidade">
                     <button id="gp-limpar" type="button" aria-label="Limpar busca">&times;</button>
                 </div>
                 <div id="gp-resultados"></div>
@@ -1682,6 +1733,9 @@ class PainelControle(MacroElement):
                 {%- endfor %}{%- endfor %}{%- elif it.subitens %}{%- for sc in it.subitens %}{%- for sr in sc.busca %}
                 {s:"{{ sr.sre }}",r:"{{ sr.rod }}",c:"{{ sr.cid }}",g:"{{ reg.nome }}",t:"OAE",k:"{{ sc.cor }}",b:"{{ sr.b }}",f:"{{ sc.layer.get_name() }}"},
                 {%- endfor %}{%- endfor %}{%- endif %}{%- endfor %}{%- endfor %}
+                {%- if this.localidades_busca %}{%- for l in this.localidades_busca.itens %}
+                {s:"{{ l.nome }}",r:"",c:"",g:"Localidade",t:"LOC",k:"{{ this.localidades_busca.cor }}",b:"{{ l.b }}",f:"{{ this.localidades_busca.layer.get_name() }}",loc:1},
+                {%- endfor %}{%- endif %}
                 ];
                 var campoBusca = document.getElementById('gp-busca');
                 var caixaRes = document.getElementById('gp-resultados');
@@ -1755,7 +1809,14 @@ class PainelControle(MacroElement):
                               [i.n ? 'Trecho ' + i.n : '', i.r, i.c, i.g].filter(Boolean).join(' · ') +
                             '</span>' +
                             '</span><span class="gp-res-tag" style="--c:' + i.k + '">' + i.t + '</span>';
-                        d.addEventListener('click', function(){ irPara(i.b, i.f, i.s); });
+                        d.addEventListener('click', function(){
+                            // Localidade: liga a camada (está desligada por padrão) antes de voar
+                            if (i.loc) {
+                                var lcb = document.querySelector('#gp-painel input[data-key="ctx~Localidades"]');
+                                if (lcb && !lcb.checked) { lcb.checked = true; lcb.dispatchEvent(new Event('change', { bubbles: true })); }
+                            }
+                            irPara(i.b, i.f, i.s);
+                        });
                         caixaRes.appendChild(d);
                     });
                     if (total > 40) {
@@ -1886,6 +1947,7 @@ class PainelControle(MacroElement):
                 var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
                 var ICON_LINK = '<svg viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.07 0l2-2a5 5 0 00-7.07-7.07l-1.1 1.1M14 11a5 5 0 00-7.07 0l-2 2a5 5 0 007.07 7.07l1.1-1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 var ICON_OK = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+                var ICON_CAM = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>';
 
                 // -- Overlay de carregamento: some quando o mapa fica pronto --
                 var loadEl = document.getElementById('gp-loading');
@@ -1918,13 +1980,353 @@ class PainelControle(MacroElement):
                         var bl = L.DomUtil.create('a', 'gp-ferr-bt', c);
                         bl.href = '#'; bl.title = 'Copiar link desta vista';
                         bl.setAttribute('role', 'button'); bl.innerHTML = ICON_LINK;
+                        var bi = L.DomUtil.create('a', 'gp-ferr-bt', c);
+                        bi.href = '#'; bi.title = 'Baixar imagem (PNG/JPEG) com carimbo';
+                        bi.setAttribute('role', 'button'); bi.innerHTML = ICON_CAM;
                         L.DomEvent.disableClickPropagation(c);
                         L.DomEvent.on(bp, 'click', function(e){ L.DomEvent.stop(e); window.print(); });
                         L.DomEvent.on(bl, 'click', function(e){ L.DomEvent.stop(e); copiarLink(bl); });
+                        L.DomEvent.on(bi, 'click', function(e){ L.DomEvent.stop(e); abrirDialogoImagem(); });
                         return c;
                     }
                 });
                 new Ferramentas().addTo(map);
+
+                // -- Baixar imagem (PNG/JPEG): prancha cartográfica --
+                function carregarScriptImg(src, glob){
+                    return new Promise(function(res, rej){
+                        if (window[glob]) return res();
+                        var s = document.createElement('script'); s.src = src;
+                        s.onload = function(){ res(); }; s.onerror = function(){ rej(new Error(src)); };
+                        document.head.appendChild(s);
+                    });
+                }
+                function carregarLibsImg(){
+                    return Promise.all([
+                        carregarScriptImg('https://unpkg.com/leaflet-image@0.4.0/leaflet-image.js', 'leafletImage'),
+                        carregarScriptImg('https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js', 'proj4')
+                    ]);
+                }
+                function imgDe(src){
+                    return new Promise(function(res){
+                        if (!src) return res(null);
+                        var im = new Image(); im.onload = function(){ res(im); };
+                        im.onerror = function(){ res(null); }; im.src = src;
+                    });
+                }
+                function passoNice(v){
+                    var e = Math.pow(10, Math.floor(Math.log(v)/Math.LN10)), f = v/e;
+                    return ((f>=5)?5:(f>=2)?2:1)*e;
+                }
+                function metrosPorPixel(){
+                    return 40075016.686*Math.abs(Math.cos(map.getCenter().lat*Math.PI/180))/(256*Math.pow(2, map.getZoom()));
+                }
+                function itensLegenda(){
+                    var L = [];
+                    function corVar(el){ if(!el) return ''; var c=el.style.getPropertyValue('--c'); if(!c) c=getComputedStyle(el).getPropertyValue('--c'); return (c||'').trim(); }
+                    function algum(sel){ return Array.prototype.some.call(document.querySelectorAll(sel), function(c){ return c.checked; }); }
+                    // descrições das situações (a partir da mini-legenda)
+                    var descSit = {};
+                    document.querySelectorAll('#gp-legenda .gp-leg-row').forEach(function(r){
+                        var cod=r.querySelector('.gp-leg-cod'), sp=r.querySelectorAll('span');
+                        if (cod) descSit[cod.textContent.trim()] = sp.length ? sp[sp.length-1].textContent.trim() : '';
+                    });
+                    // 1) Situações de TRECHO que estão ativas (chip ligado)
+                    document.querySelectorAll('#gp-painel .gp-chips .gp-chip.on').forEach(function(ch){
+                        var cod=ch.getAttribute('data-sit'), cor=corVar(ch)||getComputedStyle(ch).borderColor, d=descSit[cod]||'';
+                        L.push({ tipo:'linha', cor:cor, rot: cod + ((d && d!==cod) ? ' - '+d : '') });
+                    });
+                    // 2) Pontos críticos por status (donut) ativos
+                    document.querySelectorAll('#gp-painel .gp-donut-leg .gp-chip.on').forEach(function(ch){
+                        var nm=(ch.querySelector('.gp-cr-nome')||{}).textContent||ch.getAttribute('data-sit');
+                        L.push({ tipo:'circulo', cor: corVar(ch)||'#DC2626', rot: (nm||'').trim() });
+                    });
+                    // 3) Inventário ativo (Pontes / Bueiros / Descidas)
+                    document.querySelectorAll('#gp-painel .gp-inv-card.on').forEach(function(cd){
+                        var nm=((cd.querySelector('.gp-inv-nm')||{}).textContent||cd.getAttribute('data-inv')||'').trim();
+                        L.push({ tipo:'ponto', cor: corVar(cd)||'#F59E0B', rot: nm });
+                    });
+                    // 4) Camadas de contexto ativas
+                    if (algum('#gp-painel input[data-camada][data-key][data-regiao]') &&
+                        Array.prototype.some.call(document.querySelectorAll('#gp-painel input[data-camada][data-key]'), function(c){ return c.checked && /~Pontos SRE$/.test(c.getAttribute('data-key')||''); }))
+                        L.push({ tipo:'ponto', cor:'#1E3A72', rot:'Pontos SRE' });
+                    var loc = document.querySelector('#gp-painel input[data-key="ctx~Localidades"]');
+                    if (loc && loc.checked) L.push({ tipo:'ponto', cor:'#9333EA', rot:'Localidades' });
+                    var est = document.querySelector('#gp-painel input[data-key="ctx~Limite do Estado"]');
+                    if (est && est.checked) L.push({ tipo:'contorno', cor:'#94A3B8', rot:'Limite do Estado' });
+                    var hid = document.querySelector('#gp-painel input[data-key="ctx~Hidrografia"]');
+                    if (hid && hid.checked) L.push({ tipo:'linha', cor:'#38BDF8', rot:'Hidrografia' });
+                    return L;
+                }
+                function estadoCoords(){
+                    var est = document.querySelector('#gp-painel input[data-key="ctx~Limite do Estado"]');
+                    if (!est) return null;
+                    var fg = camadas[est.getAttribute('data-camada')];
+                    if (!fg || !fg.toGeoJSON) return null;
+                    try {
+                        var gj = fg.toGeoJSON(), aneis = [];
+                        (gj.features||[]).forEach(function(f){
+                            var g = f.geometry; if (!g) return;
+                            var polis = (g.type==='Polygon') ? [g.coordinates] : (g.type==='MultiPolygon' ? g.coordinates : []);
+                            polis.forEach(function(p){ p.forEach(function(anel){ aneis.push(anel); }); });
+                        });
+                        return aneis.length ? aneis : null;
+                    } catch(e){ return null; }
+                }
+
+                function montarPrancha(mapCv, titulo, subtitulo, logoRta, logoMsi, estAneis){
+                    var mW = mapCv.width, mH = mapCv.height;
+                    var pad = 48, gap = 16, marg = 24;
+                    var headerH = Math.max(280, Math.round(mH*0.22));
+                    var rightW = Math.max(320, Math.round(mW*0.32));
+                    var contentW = mW + pad*2 + gap + rightW;
+                    var contentH = headerH + gap + mH + pad*2;
+                    var W = marg*2 + contentW, H = marg*2 + contentH;
+                    var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+                    var g = cv.getContext('2d');
+                    g.fillStyle = '#ffffff'; g.fillRect(0,0,W,H);
+                    function caixa(x,y,w,h){ g.strokeStyle='#0f172a'; g.lineWidth=2; g.strokeRect(x+0.5,y+0.5,w,h); }
+                    function texto(t,x,y,f,cor,al){ g.font=f; g.fillStyle=cor||'#0f172a'; g.textAlign=al||'left'; g.textBaseline='alphabetic'; g.fillText(t,x,y); }
+                    function quebrar(t,maxw,f){ g.font=f; var ws=t.split(' '),ln=[],cur='';
+                        ws.forEach(function(w){ var tt=cur?cur+' '+w:w; if(g.measureText(tt).width>maxw && cur){ln.push(cur);cur=w;}else cur=tt;});
+                        if(cur)ln.push(cur); return ln; }
+
+                    // ---- Cabeçalho: título (esq) + legenda (dir) ----
+                    var hx=marg, hy=marg, titW=Math.round(contentW*0.60), legX=hx+titW+gap, legW=contentW-titW-gap;
+                    caixa(hx,hy,titW,headerH);
+                    var cx=hx+titW/2;
+                    // título: fonte grande; encolhe se passar de 2 linhas (espaço reservado)
+                    var tf=44, tit=(titulo||'MAPA DE LOCALIZAÇÃO').toUpperCase();
+                    var linsT=quebrar(tit, titW-46, 'bold '+tf+'px Inter, Arial');
+                    while (linsT.length>2 && tf>28){ tf-=4; linsT=quebrar(tit, titW-46, 'bold '+tf+'px Inter, Arial'); }
+                    var lh=Math.round(tf*1.16), subH=subtitulo?58:0;
+                    var ty=hy+Math.max(46, (headerH-(linsT.length*lh+subH))/2 + tf*0.8);
+                    linsT.forEach(function(l){ texto(l,cx,ty,'bold '+tf+'px Inter, Arial','#0f172a','center'); ty+=lh; });
+                    if (subtitulo){ g.strokeStyle='#0f172a'; g.lineWidth=1; g.beginPath(); g.moveTo(hx+34,ty-4); g.lineTo(hx+titW-34,ty-4); g.stroke(); ty+=26;
+                        quebrar(subtitulo, titW-56, '20px Inter, Arial').slice(0,2).forEach(function(l){ texto(l,cx,ty,'20px Inter, Arial','#334155','center'); ty+=26; }); }
+                    // legenda (maior, adaptável, mostra tudo que estiver ativo)
+                    caixa(legX,hy,legW,headerH);
+                    texto('LEGENDA', legX+18, hy+34, 'bold 21px Inter, Arial', '#0f172a');
+                    g.strokeStyle='#e2e8f0'; g.lineWidth=1; g.beginPath(); g.moveTo(legX+18,hy+44); g.lineTo(legX+legW-18,hy+44); g.stroke();
+                    var itns=itensLegenda(), topo=hy+58, disp=headerH-72;
+                    var rowH=Math.min(32, disp/Math.max(itns.length,1));
+                    var fs=(rowH<22)?13:((rowH<27)?15:17);
+                    itns.forEach(function(it, idx){
+                        var sx=legX+22, sy=topo+idx*rowH+rowH*0.55;
+                        g.strokeStyle=it.cor; g.fillStyle=it.cor;
+                        if(it.tipo==='linha'){ g.lineWidth=6; g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+32,sy); g.stroke(); }
+                        else if(it.tipo==='contorno'){ g.lineWidth=3; g.setLineDash([7,4]); g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+32,sy); g.stroke(); g.setLineDash([]); }
+                        else if(it.tipo==='circulo'){ g.lineWidth=3; g.beginPath(); g.arc(sx+16,sy,8,0,7); g.stroke(); }
+                        else { g.beginPath(); g.arc(sx+16,sy,7,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=1.8; g.stroke(); }
+                        texto(it.rot, sx+46, sy+fs*0.36, fs+'px Inter, Arial', '#1e293b');
+                    });
+                    if (!itns.length) texto('(nenhuma camada ativa)', legX+22, topo+16, '14px Inter, Arial', '#94a3b8');
+
+                    // ---- Mapa + moldura ----
+                    var mapX=marg+pad, mapY=marg+headerH+gap+pad;
+                    g.drawImage(mapCv, mapX, mapY, mW, mH);
+                    g.strokeStyle='#0f172a'; g.lineWidth=2; g.strokeRect(mapX-1,mapY-1,mW+2,mH+2);
+
+                    // ---- Grade UTM ----
+                    var zone, utm; try {
+                        zone = Math.floor((map.getCenter().lng+180)/6)+1;
+                        utm = '+proj=utm +zone='+zone+' +south +datum=WGS84 +units=m +no_defs';
+                        var b=map.getBounds();
+                        function U(lat,lng){ return proj4('EPSG:4326',utm,[lng,lat]); }
+                        function LL(e,n){ var r=proj4(utm,'EPSG:4326',[e,n]); return [r[1],r[0]]; }
+                        var c1=U(b.getSouth(),b.getWest()),c2=U(b.getNorth(),b.getEast()),c3=U(b.getNorth(),b.getWest()),c4=U(b.getSouth(),b.getEast());
+                        var minE=Math.min(c1[0],c3[0]),maxE=Math.max(c2[0],c4[0]),minN=Math.min(c1[1],c4[1]),maxN=Math.max(c2[1],c3[1]);
+                        var stE=passoNice((maxE-minE)/4),stN=passoNice((maxN-minN)/4);
+                        function px(lat,lng){ var p=map.latLngToContainerPoint([lat,lng]); return [mapX+p.x, mapY+p.y]; }
+                        g.save(); g.beginPath(); g.rect(mapX,mapY,mW,mH); g.clip();
+                        g.strokeStyle='rgba(255,255,255,0.5)'; g.lineWidth=1;
+                        var e0=Math.ceil(minE/stE)*stE;
+                        for(var e=e0;e<=maxE;e+=stE){ var a=px(LL(e,minN)[0],LL(e,minN)[1]),b2=px(LL(e,maxN)[0],LL(e,maxN)[1]);
+                            g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b2[0],b2[1]); g.stroke(); }
+                        var n0=Math.ceil(minN/stN)*stN;
+                        for(var n=n0;n<=maxN;n+=stN){ var a2=px(LL(minE,n)[0],LL(minE,n)[1]),c5=px(LL(maxE,n)[0],LL(maxE,n)[1]);
+                            g.beginPath(); g.moveTo(a2[0],a2[1]); g.lineTo(c5[0],c5[1]); g.stroke(); }
+                        g.restore();
+                        // rótulos fora da moldura
+                        g.fillStyle='#0f172a'; g.font='bold 12px Inter, Arial';
+                        for(var e2=e0;e2<=maxE;e2+=stE){ var pt=px(LL(e2,maxN)[0],LL(e2,maxN)[1]), pb=px(LL(e2,minN)[0],LL(e2,minN)[1]);
+                            g.textAlign='center'; g.fillText(String(Math.round(e2)), pt[0], mapY-8); g.fillText(String(Math.round(e2)), pb[0], mapY+mH+18); }
+                        for(var n2=n0;n2<=maxN;n2+=stN){ var pl=px(LL(minE,n2)[0],LL(minE,n2)[1]), pr=px(LL(maxE,n2)[0],LL(maxE,n2)[1]);
+                            g.save(); g.translate(mapX-10,pl[1]); g.rotate(-Math.PI/2); g.textAlign='center'; g.fillText(String(Math.round(n2)),0,0); g.restore();
+                            g.save(); g.translate(mapX+mW+16,pr[1]); g.rotate(-Math.PI/2); g.textAlign='center'; g.fillText(String(Math.round(n2)),0,0); g.restore(); }
+                    } catch(err){ zone = null; }
+
+                    // ---- Bússola Norte-Sul (canto sup-dir do mapa) ----
+                    (function(){
+                        var r=30, nx=mapX+mW-r-24, ny=mapY+r+32;
+                        g.save();
+                        // disco de fundo
+                        g.fillStyle='rgba(255,255,255,0.9)'; g.strokeStyle='#0f172a'; g.lineWidth=2;
+                        g.beginPath(); g.arc(nx,ny,r,0,Math.PI*2); g.fill(); g.stroke();
+                        // agulha: norte (vermelho) e sul (cinza)
+                        g.beginPath(); g.moveTo(nx,ny-r*0.78); g.lineTo(nx+r*0.26,ny); g.lineTo(nx-r*0.26,ny); g.closePath();
+                        g.fillStyle='#DC2626'; g.fill();
+                        g.beginPath(); g.moveTo(nx,ny+r*0.78); g.lineTo(nx+r*0.26,ny); g.lineTo(nx-r*0.26,ny); g.closePath();
+                        g.fillStyle='#475569'; g.fill();
+                        g.fillStyle='#0f172a'; g.beginPath(); g.arc(nx,ny,2.5,0,Math.PI*2); g.fill();
+                        // letras N e S
+                        texto('N', nx, ny-r-6, 'bold 18px Inter, Arial', '#0f172a', 'center');
+                        texto('S', nx, ny+r+16, 'bold 14px Inter, Arial', '#475569', 'center');
+                        g.restore();
+                    })();
+
+                    // ---- Coluna direita: índice / escala / logos ----
+                    var rx=marg+pad*2+mW+gap, ry=marg+headerH+gap, rH=mH+pad*2;
+                    var idxH=Math.round(rH*0.5), escH=Math.round(rH*0.24), logoH=rH-idxH-escH-gap*2;
+                    // índice do estado
+                    caixa(rx,ry,rightW,idxH);
+                    texto('ESTADO DO TOCANTINS', rx+rightW/2, ry+24, 'bold 14px Inter, Arial', '#0f172a', 'center');
+                    if (estAneis && estAneis.length){
+                        var bx0=rx+16, by0=ry+40, bw=rightW-32, bh=idxH-56;
+                        var la=1e9,lo=1e9,ua=-1e9,uo=-1e9;
+                        estAneis.forEach(function(an){ an.forEach(function(p){ if(p[0]<lo)lo=p[0]; if(p[0]>uo)uo=p[0]; if(p[1]<la)la=p[1]; if(p[1]>ua)ua=p[1]; }); });
+                        var sc=Math.min(bw/(uo-lo), bh/(ua-la))*0.92;
+                        var ox=bx0+(bw-(uo-lo)*sc)/2, oy=by0+(bh-(ua-la)*sc)/2;
+                        function ep(p){ return [ox+(p[0]-lo)*sc, oy+(ua-p[1])*sc]; }
+                        g.strokeStyle='#475569'; g.lineWidth=1;
+                        estAneis.forEach(function(an){ g.beginPath(); an.forEach(function(p,i){ var q=ep(p); if(i===0)g.moveTo(q[0],q[1]); else g.lineTo(q[0],q[1]); }); g.stroke(); });
+                        var cc=map.getCenter(), cp=ep([cc.lng,cc.lat]);
+                        g.fillStyle='#DC2626'; g.beginPath(); g.arc(cp[0],cp[1],6,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=2; g.stroke();
+                    } else { texto('(ligue "Limite do Estado")', rx+rightW/2, ry+idxH/2, '12px Inter, Arial', '#94a3b8', 'center'); }
+                    // escala
+                    var ey=ry+idxH+gap; caixa(rx,ey,rightW,escH);
+                    var mpp=metrosPorPixel();
+                    var denom=Math.round(mpp/(0.0254/96));
+                    texto('Escala aprox. 1:'+denom.toLocaleString('pt-BR'), rx+rightW/2, ey+26, 'bold 14px Inter, Arial', '#0f172a', 'center');
+                    var barM=passoNice(mpp*mW*0.30), barPx=barM/mpp; if(barPx>rightW-70){ barM/=2; barPx/=2; }
+                    var bxs=rx+(rightW-barPx)/2, bys=ey+50;
+                    var segs=4, sw2=barPx/segs;
+                    for(var s2=0;s2<segs;s2++){ g.fillStyle=(s2%2===0)?'#0f172a':'#ffffff'; g.fillRect(bxs+s2*sw2,bys,sw2,8); g.strokeStyle='#0f172a'; g.lineWidth=1; g.strokeRect(bxs+s2*sw2,bys,sw2,8); }
+                    texto('0', bxs, bys+24, '11px Inter, Arial', '#334155', 'center');
+                    var totM=barM; texto((totM>=1000?(totM/1000)+' km':Math.round(totM)+' m'), bxs+barPx, bys+24, '11px Inter, Arial', '#334155', 'center');
+                    texto('SIRGAS 2000 / WGS 84'+(zone?(' - UTM Zona '+zone+'S'):''), rx+rightW/2, ey+escH-14, '11px Inter, Arial', '#475569', 'center');
+                    // logos
+                    var gy=ry+idxH+escH+gap*2; caixa(rx,gy,rightW,logoH);
+                    var dispY=gy+logoH/2;
+                    if (logoRta){ var h1=Math.min(66,logoH-46), w1=logoRta.width*(h1/logoRta.height); g.drawImage(logoRta, rx+rightW/2-w1-18, dispY-h1/2, w1, h1); }
+                    if (logoMsi){ var h2=Math.min(80,logoH-36), w2=logoMsi.width*(h2/logoMsi.height); g.drawImage(logoMsi, rx+rightW/2+18, dispY-h2/2, w2, h2); }
+                    var dnow=new Date(); var dstr=('0'+dnow.getDate()).slice(-2)+'/'+('0'+(dnow.getMonth()+1)).slice(-2)+'/'+dnow.getFullYear();
+                    texto('RTA Engenheiros Consultores · MSI Engenharia · '+dstr, rx+rightW/2, gy+logoH-12, '11px Inter, Arial', '#475569', 'center');
+                    return cv;
+                }
+
+                // Captura o mapa: tiles (leaflet-image) + vetores (serialização do
+                // SVG). O leaflet-image sozinho NÃO desenha os vetores aninhados em
+                // FeatureGroups (trechos/pontos), por isso desenhamos os SVGs por cima.
+                function capturarMapaCanvas(){
+                    return new Promise(function(res, rej){
+                        leafletImage(map, function(err, tiles){
+                            if (err) return rej(err);
+                            try {
+                                var cont = map.getContainer(), cr = cont.getBoundingClientRect();
+                                var cv = document.createElement('canvas'); cv.width = tiles.width; cv.height = tiles.height;
+                                var ctx = cv.getContext('2d'); ctx.drawImage(tiles, 0, 0);
+                                var svgs = Array.prototype.slice.call(cont.querySelectorAll('.leaflet-overlay-pane svg, .leaflet-marker-pane svg'));
+                                (function proximo(i){
+                                    if (i >= svgs.length) return res(cv);
+                                    var svg = svgs[i], bbox;
+                                    try { bbox = svg.getBBox(); } catch(e){ return proximo(i+1); }
+                                    if (!bbox.width || !bbox.height || !svg.getScreenCTM) return proximo(i+1);
+                                    var ctm = svg.getScreenCTM();
+                                    var p = svg.createSVGPoint(); p.x = bbox.x; p.y = bbox.y;
+                                    var scr = p.matrixTransform(ctm), sc = Math.hypot(ctm.a, ctm.b) || 1;
+                                    var cl = svg.cloneNode(true);
+                                    cl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                                    cl.setAttribute('viewBox', bbox.x+' '+bbox.y+' '+bbox.width+' '+bbox.height);
+                                    cl.setAttribute('width', bbox.width); cl.setAttribute('height', bbox.height);
+                                    var xml = new XMLSerializer().serializeToString(cl);
+                                    var im = new Image();
+                                    im.onload = function(){ try { ctx.drawImage(im, scr.x-cr.left, scr.y-cr.top, bbox.width*sc, bbox.height*sc); } catch(e){} proximo(i+1); };
+                                    im.onerror = function(){ proximo(i+1); };
+                                    im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+                                })(0);
+                            } catch(e){ rej(e); }
+                        });
+                    });
+                }
+                function baixarImagem(formato, titulo, subtitulo, feito){
+                    carregarLibsImg().then(function(){
+                        return Promise.all([ imgDe((document.querySelector('.gp-logo-rta')||{}).src),
+                                             imgDe((document.querySelector('.gp-logo-msi')||{}).src) ]);
+                    }).then(function(logos){
+                        return capturarMapaCanvas().then(function(canvas){ return { canvas: canvas, logos: logos }; });
+                    }).then(function(o){
+                        var page = montarPrancha(o.canvas, titulo, subtitulo, o.logos[0], o.logos[1], estadoCoords());
+                        var mime = (formato==='jpeg') ? 'image/jpeg' : 'image/png';
+                        var url = page.toDataURL(mime, (formato==='jpeg')?0.92:undefined);
+                        var base = (titulo || 'mapa').replace(/[^\w\- À-ÿ]+/g, '').trim().replace(/\s+/g, '_') || 'mapa';
+                        var a = document.createElement('a'); a.download = base+'.'+((formato==='jpeg')?'jpg':'png'); a.href = url; a.click();
+                    }).catch(function(e){
+                        alert('Não consegui gerar a imagem: ' + ((e && e.message) || e) +
+                              '\\n(Precisa de internet na 1ª vez para baixar as ferramentas de mapa.)');
+                    }).then(function(){ if (feito) feito(); });
+                }
+                function abrirDialogoImagem(){
+                    var ov = document.createElement('div');
+                    ov.className = 'gp-modal-ov gp-nao-exportar';
+                    ov.innerHTML =
+                        '<div class="gp-modal">' +
+                          '<div class="gp-modal-h">Baixar imagem do mapa</div>' +
+                          '<div class="gp-modal-b">' +
+                            '<label class="gp-modal-lbl">Título</label>' +
+                            '<input type="text" class="gp-modal-inp gp-mi-tit" maxlength="90" placeholder="Ex.: MAPA DE LOCALIZAÇÃO - RODOVIA TO-XXX">' +
+                            '<label class="gp-modal-lbl" style="margin-top:12px">Subtítulo (municípios, extensão…)</label>' +
+                            '<input type="text" class="gp-modal-inp gp-mi-sub" maxlength="140" placeholder="Ex.: Municípios: Augustinópolis, Praia Norte…">' +
+                            '<div class="gp-modal-dica">Enquadre a região no mapa antes de baixar. A prancha sai com grade UTM, escala, mapa-índice do estado, legenda e as logos RTA + MSI.</div>' +
+                          '</div>' +
+                          '<div class="gp-modal-acoes">' +
+                            '<button type="button" class="gp-modal-bt cancel">Cancelar</button>' +
+                            '<button type="button" class="gp-modal-bt png">Baixar PNG</button>' +
+                            '<button type="button" class="gp-modal-bt jpeg">Baixar JPEG</button>' +
+                          '</div>' +
+                        '</div>';
+                    document.body.appendChild(ov);
+                    var inp = ov.querySelector('.gp-mi-tit');
+                    var inpSub = ov.querySelector('.gp-mi-sub');
+                    var btns = ov.querySelectorAll('.gp-modal-bt');
+                    setTimeout(function(){ inp.focus(); }, 30);
+                    function fechar(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+                    function gerar(fmt){
+                        btns.forEach(function(b){ b.disabled = true; });
+                        var alvo = ov.querySelector('.gp-modal-bt.' + fmt);
+                        if (alvo) alvo.textContent = 'Gerando…';
+                        baixarImagem(fmt, inp.value.trim(), inpSub.value.trim(), fechar);
+                    }
+                    ov.querySelector('.cancel').addEventListener('click', fechar);
+                    ov.addEventListener('click', function(e){ if (e.target === ov) fechar(); });
+                    ov.querySelector('.png').addEventListener('click', function(){ gerar('png'); });
+                    ov.querySelector('.jpeg').addEventListener('click', function(){ gerar('jpeg'); });
+                    inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') gerar('png'); });
+                }
+
+                // -- Localidades: nomes visíveis (rótulo permanente) a partir de
+                // um zoom, senão viram sopa. Some quando afasta o mapa. --
+                (function(){
+                    var cb = document.querySelector('#gp-painel input[data-key="ctx~Localidades"]');
+                    if (!cb) return;
+                    var fg = camadas[cb.getAttribute('data-camada')];
+                    if (!fg) return;
+                    function rotular(layer){
+                        if (layer.eachLayer) { layer.eachLayer(rotular); return; }
+                        if (layer.getLatLng && layer.feature && !layer._locRot) {
+                            var nm = layer.feature.properties && layer.feature.properties.nome;
+                            if (nm) {
+                                layer.bindTooltip(String(nm), { permanent: true, direction: 'right',
+                                    className: 'loc-label', offset: [5, 0] });
+                                layer._locRot = true;
+                            }
+                        }
+                    }
+                    rotular(fg);
+                    function ajustar(){ map.getContainer().classList.toggle('loc-zoom-baixo', map.getZoom() < 9); }
+                    map.on('zoomend', ajustar);
+                    ajustar();
+                })();
 
                 // Ao imprimir, a folha tem proporção diferente da tela; sem isto o
                 // Leaflet mantém o tamanho antigo e o trecho sai deslocado/cortado.
@@ -2419,11 +2821,52 @@ def create_webgis():
         print(f"      (ex.: R1_TRECHOS.shp). Pasta lida: {camadas_dir}")
         sys.exit(1)
 
+    # ---------------- Camada de contexto extra: Localidades ------------------
+    # Fica na pasta 'camadas contexto' (fora do padrão R{n}_{TIPO}). Pontos de
+    # localidades/povoados; entra como contexto (desligada por padrão).
+    loc_path = base_dir / 'camadas contexto' / 'BCLocalidadePonto100_GCS.shp'
+    if loc_path.exists():
+        try:
+            gdf_loc = gpd.read_file(loc_path)
+            if gdf_loc.crs is not None and gdf_loc.crs.to_epsg() != 4326:
+                gdf_loc = gdf_loc.to_crs(4326)
+            gdf_loc = limpar_atributos(gdf_loc)
+            gdf_loc = gdf_loc[gdf_loc.geometry.apply(geom_valida)].copy()
+            col_nome = next((c for c in ['NM_IDENTIF', 'NM_LOC_ASS', 'NOME', 'nome']
+                             if c in gdf_loc.columns), None)
+            keep = ['geometry'] + ([col_nome] if col_nome else [])
+            gdf_loc = gdf_loc[keep]
+            if col_nome:
+                gdf_loc = gdf_loc.rename(columns={col_nome: 'nome'})
+            fg_loc = folium.FeatureGroup(name='Localidades', show=False, control=False)
+            folium.GeoJson(
+                data=gdf_loc,
+                marker=folium.CircleMarker(radius=2.6, color='#fff', weight=0.8,
+                                           fill=True, fill_color=COR_LOCALIDADE,
+                                           fill_opacity=0.85),
+                tooltip=(folium.GeoJsonTooltip(fields=['nome'], aliases=['Localidade:'])
+                         if col_nome else None),
+            ).add_to(fg_loc)
+            busca_loc = []
+            if col_nome:
+                for _, r in gdf_loc.iterrows():
+                    nm = str(r['nome'] or '').replace('\\', '').replace('"', "'").strip()
+                    if not nm:
+                        continue
+                    gy, gx = r.geometry.y, r.geometry.x
+                    busca_loc.append({'nome': nm, 'b': f'{gy:.6f},{gx:.6f},{gy:.6f},{gx:.6f}'})
+            contexto['localidades'] = {'fg': fg_loc, 'count': len(gdf_loc), 'busca': busca_loc}
+            print(f"  Localidades (contexto): {len(gdf_loc)} pontos ({len(busca_loc)} na busca)")
+        except Exception as e:
+            print(f"  Aviso: não consegui carregar a camada Localidades: {e}")
+
     # Ordem de sobreposição: hidrografia -> estado -> polígonos -> linhas -> pontos
     if 'hidrografia' in contexto:
         contexto['hidrografia']['fg'].add_to(m)
     if 'estado' in contexto:
         contexto['estado']['fg'].add_to(m)
+    if 'localidades' in contexto:
+        contexto['localidades']['fg'].add_to(m)
 
     def rid_key(rid):
         mm = re.match(r'R(\d+)$', rid)
@@ -2528,6 +2971,10 @@ def create_webgis():
         contexto_info.append({'nome': 'Hidrografia', 'layer': contexto['hidrografia']['fg'],
                               'cor': COR_HIDRO, 'forma': 'linha', 'ativo': False,
                               'count': fmt(contexto['hidrografia']['count'])})
+    if 'localidades' in contexto:
+        contexto_info.append({'nome': 'Localidades', 'layer': contexto['localidades']['fg'],
+                              'cor': COR_LOCALIDADE, 'forma': 'ponto', 'ativo': False,
+                              'count': fmt(contexto['localidades']['count'])})
 
     # 5. Arquivos para download (KML + Shapefile zipado)
     print("\nGerando os arquivos para download...")
@@ -2597,6 +3044,12 @@ def create_webgis():
         for chave, rotulo, cor, _f in INVENTARIO_META if chave in tot_inv
     ]
 
+    localidades_busca = None
+    if 'localidades' in contexto and contexto['localidades'].get('busca'):
+        localidades_busca = {'itens': contexto['localidades']['busca'],
+                             'layer': contexto['localidades']['fg'],
+                             'cor': COR_LOCALIDADE}
+
     m.add_child(PainelControle(
         basemaps=[{'nome': 'Padrão', 'layer': tl_padrao, 'icone': 'mapa'},
                   {'nome': 'Satélite', 'layer': tl_satelite, 'icone': 'satelite'},
@@ -2613,6 +3066,7 @@ def create_webgis():
         subtitulo='WebGIS · Inventário Rodoviário — Tocantins',
         logo=logo_uri,
         logo2=logo2_uri,
+        localidades_busca=localidades_busca,
     ))
 
     # Overlay de carregamento: injetado no TOPO do <body> para aparecer de
