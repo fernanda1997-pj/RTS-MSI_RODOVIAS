@@ -159,7 +159,7 @@ COR_CRITICO = '#ef2b2b'
 # Cores das camadas de contexto (estaduais)
 COR_ESTADO = '#94A3B8'  # slate: legível no satélite E no painel branco
 COR_HIDRO = '#38BDF8'   # azul-céu
-COR_LOCALIDADE = '#9333EA'  # roxo: distinto das situações, críticos e hidro
+COR_LOCALIDADE = '#EC4899'  # rosa: distinto do bueiro (roxo), situações, críticos e hidro
 
 # Situação dos trechos (códigos oficiais do SRE) -> (descrição, cor).
 # As cores são agrupadas por FAMÍLIA para o mapa se ler à distância:
@@ -1096,7 +1096,7 @@ class PainelControle(MacroElement):
 
             /* ---- Rótulos das Localidades (permanentes, aparecem com zoom) ---- */
             .loc-label { background:rgba(255,255,255,0.82); border:none; box-shadow:none;
-                color:#5b21b6; font-family:'Inter',-apple-system,sans-serif;
+                color:#9d174d; font-family:'Inter',-apple-system,sans-serif;
                 font-size:9.5px; font-weight:600; padding:0 3px; border-radius:3px;
                 white-space:nowrap; -webkit-text-stroke:0; }
             .loc-label::before { display:none !important; }   /* sem a setinha do tooltip */
@@ -2089,7 +2089,7 @@ class PainelControle(MacroElement):
                     if (naVista(camDe('#gp-painel input[data-camada][data-key$="~Pontos SRE"]')))
                         L.push({ tipo:'ponto', cor:'#1E3A72', rot:'Pontos SRE' });
                     var loc = document.querySelector('#gp-painel input[data-key="ctx~Localidades"]');
-                    if (loc && loc.checked && naVista([loc.getAttribute('data-camada')])) L.push({ tipo:'ponto', cor:'#9333EA', rot:'Localidades' });
+                    if (loc && loc.checked && naVista([loc.getAttribute('data-camada')])) L.push({ tipo:'ponto', cor:'#EC4899', rot:'Localidades' });
                     var est = document.querySelector('#gp-painel input[data-key="ctx~Limite do Estado"]');
                     if (est && est.checked){
                         // polígono enorme: só entra se algum vértice da borda estiver na vista
