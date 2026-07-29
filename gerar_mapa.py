@@ -1974,17 +1974,13 @@ class PainelControle(MacroElement):
                     options: { position: 'topright' },
                     onAdd: function(){
                         var c = L.DomUtil.create('div', 'leaflet-bar gp-ferramentas');
-                        var bp = L.DomUtil.create('a', 'gp-ferr-bt', c);
-                        bp.href = '#'; bp.title = 'Imprimir / salvar em PDF';
-                        bp.setAttribute('role', 'button'); bp.innerHTML = ICON_PRINT;
                         var bl = L.DomUtil.create('a', 'gp-ferr-bt', c);
                         bl.href = '#'; bl.title = 'Copiar link desta vista';
                         bl.setAttribute('role', 'button'); bl.innerHTML = ICON_LINK;
                         var bi = L.DomUtil.create('a', 'gp-ferr-bt', c);
-                        bi.href = '#'; bi.title = 'Baixar imagem (PNG/JPEG) com carimbo';
+                        bi.href = '#'; bi.title = 'Baixar imagem (prancha PNG/JPEG)';
                         bi.setAttribute('role', 'button'); bi.innerHTML = ICON_CAM;
                         L.DomEvent.disableClickPropagation(c);
-                        L.DomEvent.on(bp, 'click', function(e){ L.DomEvent.stop(e); window.print(); });
                         L.DomEvent.on(bl, 'click', function(e){ L.DomEvent.stop(e); copiarLink(bl); });
                         L.DomEvent.on(bi, 'click', function(e){ L.DomEvent.stop(e); abrirDialogoImagem(); });
                         return c;
@@ -2003,9 +1999,29 @@ class PainelControle(MacroElement):
                 }
                 function carregarLibsImg(){
                     return Promise.all([
-                        carregarScriptImg('https://unpkg.com/leaflet-image@0.4.0/leaflet-image.js', 'leafletImage'),
+                        carregarScriptImg('https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js', 'htmlToImage'),
                         carregarScriptImg('https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js', 'proj4')
                     ]);
+                }
+                // Contorno do Brasil (estados) p/ o mapa-índice — buscado 1x de um CDN.
+                var _brasil = null, _brasilP = null;
+                function carregarBrasil(){
+                    if (_brasil !== null) return Promise.resolve(_brasil);
+                    if (_brasilP) return _brasilP;
+                    _brasilP = fetch('https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@main/public/data/brazil-states.geojson')
+                        .then(function(r){ return r.json(); })
+                        .then(function(j){
+                            var todos=[], to=[];
+                            (j.features||[]).forEach(function(f){
+                                var nome=((f.properties&&(f.properties.name||f.properties.NAME||f.properties.nome))||'')+'';
+                                var gm=f.geometry; if(!gm) return;
+                                var polis=(gm.type==='Polygon')?[gm.coordinates]:(gm.type==='MultiPolygon'?gm.coordinates:[]);
+                                polis.forEach(function(p){ p.forEach(function(anel){ todos.push(anel); if(/tocantins/i.test(nome)) to.push(anel); }); });
+                            });
+                            _brasil = todos.length ? { todos: todos, to: to } : false;
+                            return _brasil;
+                        }).catch(function(){ _brasil = false; return false; });
+                    return _brasilP;
                 }
                 function imgDe(src){
                     return new Promise(function(res){
@@ -2021,41 +2037,69 @@ class PainelControle(MacroElement):
                 function metrosPorPixel(){
                     return 40075016.686*Math.abs(Math.cos(map.getCenter().lat*Math.PI/180))/(256*Math.pow(2, map.getZoom()));
                 }
+                // Legenda mostra SÓ o que aparece na área do mapa exportado (vista atual).
                 function itensLegenda(){
-                    var L = [];
+                    var L = [], vb = map.getBounds();
                     function corVar(el){ if(!el) return ''; var c=el.style.getPropertyValue('--c'); if(!c) c=getComputedStyle(el).getPropertyValue('--c'); return (c||'').trim(); }
-                    function algum(sel){ return Array.prototype.some.call(document.querySelectorAll(sel), function(c){ return c.checked; }); }
-                    // descrições das situações (a partir da mini-legenda)
+                    function camDe(sel){ var n=[]; document.querySelectorAll(sel).forEach(function(c){ var nm=c.getAttribute('data-camada'); if(nm) n.push(nm); }); return n; }
+                    // true se alguma feição das camadas está dentro da vista (poda subárvores fora)
+                    function naVista(nomes){
+                        for (var k=0;k<nomes.length;k++){
+                            var fg = camadas[nomes[k]]; if(!fg || !map.hasLayer(fg)) continue;
+                            var achou = false;
+                            (function scan(l){
+                                if (achou) return;
+                                if (l.getLatLng){ try{ if(vb.contains(l.getLatLng())) achou=true; }catch(e){} return; }
+                                if (l.getBounds){ var b; try{ b=l.getBounds(); }catch(e){ return; }
+                                    if (!b || !b.isValid() || !vb.intersects(b)) return;
+                                    if (l.eachLayer) l.eachLayer(scan); else achou=true; return; }
+                                if (l.eachLayer) l.eachLayer(scan);
+                            })(fg);
+                            if (achou) return true;
+                        }
+                        return false;
+                    }
                     var descSit = {};
                     document.querySelectorAll('#gp-legenda .gp-leg-row').forEach(function(r){
                         var cod=r.querySelector('.gp-leg-cod'), sp=r.querySelectorAll('span');
                         if (cod) descSit[cod.textContent.trim()] = sp.length ? sp[sp.length-1].textContent.trim() : '';
                     });
-                    // 1) Situações de TRECHO que estão ativas (chip ligado)
+                    // 1) Situações de TRECHO ativas e presentes na vista
                     document.querySelectorAll('#gp-painel .gp-chips .gp-chip.on').forEach(function(ch){
-                        var cod=ch.getAttribute('data-sit'), cor=corVar(ch)||getComputedStyle(ch).borderColor, d=descSit[cod]||'';
+                        var cod=ch.getAttribute('data-sit');
+                        if (!naVista(camDe('#gp-painel input[data-sit="'+cod+'"][data-grupo$="-trechos"][data-camada]'))) return;
+                        var cor=corVar(ch)||getComputedStyle(ch).borderColor, d=descSit[cod]||'';
                         L.push({ tipo:'linha', cor:cor, rot: cod + ((d && d!==cod) ? ' - '+d : '') });
                     });
-                    // 2) Pontos críticos por status (donut) ativos
+                    // 2) Pontos críticos por status presentes na vista
                     document.querySelectorAll('#gp-painel .gp-donut-leg .gp-chip.on').forEach(function(ch){
-                        var nm=(ch.querySelector('.gp-cr-nome')||{}).textContent||ch.getAttribute('data-sit');
+                        var cod=ch.getAttribute('data-sit');
+                        if (!naVista(camDe('#gp-painel input[data-sit="'+cod+'"][data-grupo$="-criticos"][data-camada]'))) return;
+                        var nm=(ch.querySelector('.gp-cr-nome')||{}).textContent||cod;
                         L.push({ tipo:'circulo', cor: corVar(ch)||'#DC2626', rot: (nm||'').trim() });
                     });
-                    // 3) Inventário ativo (Pontes / Bueiros / Descidas)
+                    // 3) Inventário (Pontes/Bueiros/Descidas) presente na vista
                     document.querySelectorAll('#gp-painel .gp-inv-card.on').forEach(function(cd){
-                        var nm=((cd.querySelector('.gp-inv-nm')||{}).textContent||cd.getAttribute('data-inv')||'').trim();
+                        var inv=cd.getAttribute('data-inv');
+                        if (!naVista(camDe('#gp-painel input[data-inv="'+inv+'"][data-camada]'))) return;
+                        var nm=((cd.querySelector('.gp-inv-nm')||{}).textContent||inv||'').trim();
                         L.push({ tipo:'ponto', cor: corVar(cd)||'#F59E0B', rot: nm });
                     });
-                    // 4) Camadas de contexto ativas
-                    if (algum('#gp-painel input[data-camada][data-key][data-regiao]') &&
-                        Array.prototype.some.call(document.querySelectorAll('#gp-painel input[data-camada][data-key]'), function(c){ return c.checked && /~Pontos SRE$/.test(c.getAttribute('data-key')||''); }))
+                    // 4) Contexto presente na vista
+                    if (naVista(camDe('#gp-painel input[data-camada][data-key$="~Pontos SRE"]')))
                         L.push({ tipo:'ponto', cor:'#1E3A72', rot:'Pontos SRE' });
                     var loc = document.querySelector('#gp-painel input[data-key="ctx~Localidades"]');
-                    if (loc && loc.checked) L.push({ tipo:'ponto', cor:'#9333EA', rot:'Localidades' });
+                    if (loc && loc.checked && naVista([loc.getAttribute('data-camada')])) L.push({ tipo:'ponto', cor:'#9333EA', rot:'Localidades' });
                     var est = document.querySelector('#gp-painel input[data-key="ctx~Limite do Estado"]');
-                    if (est && est.checked) L.push({ tipo:'contorno', cor:'#94A3B8', rot:'Limite do Estado' });
+                    if (est && est.checked){
+                        // polígono enorme: só entra se algum vértice da borda estiver na vista
+                        var rings = estadoCoords(), vis = false;
+                        if (rings){ for (var ri=0; ri<rings.length && !vis; ri++){ var an=rings[ri];
+                            for (var pj=0; pj<an.length; pj++){ if (vb.contains([an[pj][1], an[pj][0]])){ vis=true; break; } } } }
+                        if (vis) L.push({ tipo:'contorno', cor:'#94A3B8', rot:'Limite do Estado' });
+                    }
                     var hid = document.querySelector('#gp-painel input[data-key="ctx~Hidrografia"]');
-                    if (hid && hid.checked) L.push({ tipo:'linha', cor:'#38BDF8', rot:'Hidrografia' });
+                    if (hid && hid.checked && naVista([hid.getAttribute('data-camada')])) L.push({ tipo:'linha', cor:'#38BDF8', rot:'Hidrografia' });
                     return L;
                 }
                 function estadoCoords(){
@@ -2074,56 +2118,93 @@ class PainelControle(MacroElement):
                     } catch(e){ return null; }
                 }
 
-                function montarPrancha(mapCv, titulo, subtitulo, logoRta, logoMsi, estAneis){
+                function montarPrancha(mapCv, titulo, subtitulo, logoRta, logoMsi, estAneis, brasil){
                     var mW = mapCv.width, mH = mapCv.height;
-                    var pad = 48, gap = 16, marg = 24;
-                    var headerH = Math.max(280, Math.round(mH*0.22));
-                    var rightW = Math.max(320, Math.round(mW*0.32));
-                    var contentW = mW + pad*2 + gap + rightW;
-                    var contentH = headerH + gap + mH + pad*2;
-                    var W = marg*2 + contentW, H = marg*2 + contentH;
+                    var gridPad = 46, marg = 22;
+                    var contentW = mW + gridPad*2;
+                    var headerH = Math.max(280, Math.round(contentW*0.15));
+                    var mapX = marg + gridPad, mapY = marg + headerH + 8 + gridPad;
+                    var W = marg*2 + contentW;
+                    var H = mapY + mH + gridPad + marg;
                     var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
                     var g = cv.getContext('2d');
                     g.fillStyle = '#ffffff'; g.fillRect(0,0,W,H);
-                    function caixa(x,y,w,h){ g.strokeStyle='#0f172a'; g.lineWidth=2; g.strokeRect(x+0.5,y+0.5,w,h); }
+                    function caixa(x,y,w,h,lw){ g.strokeStyle='#0f172a'; g.lineWidth=lw||2; g.strokeRect(x+0.5,y+0.5,w,h); }
                     function texto(t,x,y,f,cor,al){ g.font=f; g.fillStyle=cor||'#0f172a'; g.textAlign=al||'left'; g.textBaseline='alphabetic'; g.fillText(t,x,y); }
                     function quebrar(t,maxw,f){ g.font=f; var ws=t.split(' '),ln=[],cur='';
                         ws.forEach(function(w){ var tt=cur?cur+' '+w:w; if(g.measureText(tt).width>maxw && cur){ln.push(cur);cur=w;}else cur=tt;});
                         if(cur)ln.push(cur); return ln; }
+                    function boundsDe(rings){ var la=1e9,lo=1e9,ua=-1e9,uo=-1e9; rings.forEach(function(an){ an.forEach(function(p){ if(p[0]<lo)lo=p[0]; if(p[0]>uo)uo=p[0]; if(p[1]<la)la=p[1]; if(p[1]>ua)ua=p[1]; }); }); return [lo,la,uo,ua]; }
+                    function desenhaGeo(rings, bx, by, bw, bh, opts){
+                        opts=opts||{}; var bb=opts.bbox||boundsDe(rings), lo=bb[0],la=bb[1],uo=bb[2],ua=bb[3];
+                        var sc=Math.min(bw/(uo-lo), bh/(ua-la))*0.9;
+                        var ox=bx+(bw-(uo-lo)*sc)/2, oy=by+(bh-(ua-la)*sc)/2;
+                        function ep(p){ return [ox+(p[0]-lo)*sc, oy+(ua-p[1])*sc]; }
+                        g.lineWidth=opts.lw||0.7; g.strokeStyle=opts.cor||'#94a3b8';
+                        rings.forEach(function(an){ g.beginPath(); an.forEach(function(p,i){ var q=ep(p); i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]); }); g.closePath(); if(opts.fill){ g.fillStyle=opts.fill; g.fill(); } g.stroke(); });
+                        return ep;
+                    }
+                    function rosaVentos(cx, cy, r){
+                        var dirs=[[0,-1],[1,0],[0,1],[-1,0]];
+                        g.save();
+                        g.fillStyle='rgba(255,255,255,0.85)'; g.strokeStyle='#0f172a'; g.lineWidth=1.5;
+                        g.beginPath(); g.arc(cx,cy,r*1.08,0,Math.PI*2); g.fill(); g.stroke();
+                        for(var i=0;i<4;i++){ var a=dirs[i], qx=-a[1], qy=a[0];
+                            g.beginPath(); g.moveTo(cx+a[0]*r, cy+a[1]*r);
+                            g.lineTo(cx+qx*r*0.17, cy+qy*r*0.17); g.lineTo(cx-qx*r*0.17, cy-qy*r*0.17); g.closePath();
+                            g.fillStyle=(i===0)?'#0f172a':'#94a3b8'; g.fill(); g.strokeStyle='#0f172a'; g.lineWidth=0.8; g.stroke(); }
+                        g.fillStyle='#0f172a'; g.beginPath(); g.arc(cx,cy,r*0.1,0,Math.PI*2); g.fill();
+                        g.fillStyle='#0f172a'; g.textAlign='center'; g.textBaseline='middle'; g.font='bold '+Math.round(r*0.44)+'px Georgia, serif';
+                        g.fillText('N',cx,cy-r*1.42); g.fillText('S',cx,cy+r*1.42); g.fillText('E',cx+r*1.42,cy); g.fillText('W',cx-r*1.42,cy);
+                        g.restore();
+                    }
 
-                    // ---- Cabeçalho: título (esq) + legenda (dir) ----
-                    var hx=marg, hy=marg, titW=Math.round(contentW*0.60), legX=hx+titW+gap, legW=contentW-titW-gap;
-                    caixa(hx,hy,titW,headerH);
-                    var cx=hx+titW/2;
-                    // título: fonte grande; encolhe se passar de 2 linhas (espaço reservado)
-                    var tf=44, tit=(titulo||'MAPA DE LOCALIZAÇÃO').toUpperCase();
-                    var linsT=quebrar(tit, titW-46, 'bold '+tf+'px Inter, Arial');
-                    while (linsT.length>2 && tf>28){ tf-=4; linsT=quebrar(tit, titW-46, 'bold '+tf+'px Inter, Arial'); }
-                    var lh=Math.round(tf*1.16), subH=subtitulo?58:0;
-                    var ty=hy+Math.max(46, (headerH-(linsT.length*lh+subH))/2 + tf*0.8);
-                    linsT.forEach(function(l){ texto(l,cx,ty,'bold '+tf+'px Inter, Arial','#0f172a','center'); ty+=lh; });
-                    if (subtitulo){ g.strokeStyle='#0f172a'; g.lineWidth=1; g.beginPath(); g.moveTo(hx+34,ty-4); g.lineTo(hx+titW-34,ty-4); g.stroke(); ty+=26;
-                        quebrar(subtitulo, titW-56, '20px Inter, Arial').slice(0,2).forEach(function(l){ texto(l,cx,ty,'20px Inter, Arial','#334155','center'); ty+=26; }); }
-                    // legenda (maior, adaptável, mostra tudo que estiver ativo)
-                    caixa(legX,hy,legW,headerH);
-                    texto('LEGENDA', legX+18, hy+34, 'bold 21px Inter, Arial', '#0f172a');
-                    g.strokeStyle='#e2e8f0'; g.lineWidth=1; g.beginPath(); g.moveTo(legX+18,hy+44); g.lineTo(legX+legW-18,hy+44); g.stroke();
-                    var itns=itensLegenda(), topo=hy+58, disp=headerH-72;
-                    var rowH=Math.min(32, disp/Math.max(itns.length,1));
-                    var fs=(rowH<22)?13:((rowH<27)?15:17);
-                    itns.forEach(function(it, idx){
-                        var sx=legX+22, sy=topo+idx*rowH+rowH*0.55;
-                        g.strokeStyle=it.cor; g.fillStyle=it.cor;
-                        if(it.tipo==='linha'){ g.lineWidth=6; g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+32,sy); g.stroke(); }
-                        else if(it.tipo==='contorno'){ g.lineWidth=3; g.setLineDash([7,4]); g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+32,sy); g.stroke(); g.setLineDash([]); }
-                        else if(it.tipo==='circulo'){ g.lineWidth=3; g.beginPath(); g.arc(sx+16,sy,8,0,7); g.stroke(); }
-                        else { g.beginPath(); g.arc(sx+16,sy,7,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=1.8; g.stroke(); }
-                        texto(it.rot, sx+46, sy+fs*0.36, fs+'px Inter, Arial', '#1e293b');
-                    });
-                    if (!itns.length) texto('(nenhuma camada ativa)', legX+22, topo+16, '14px Inter, Arial', '#94a3b8');
+                    // ---- Moldura externa ----
+                    g.strokeStyle='#0f172a'; g.lineWidth=3; g.strokeRect(marg-6+0.5, marg-6+0.5, W-2*(marg-6), H-2*(marg-6));
+
+                    // ---- Cabeçalho: 2 índices + logos + título ----
+                    var hx=marg, hy=marg, hW=contentW;
+                    caixa(hx,hy,hW,headerH);
+                    var brW=Math.round(hW*0.22), toW=Math.round(hW*0.24), rgX=hx+brW+toW, rgW=hW-brW-toW;
+                    g.strokeStyle='#0f172a'; g.lineWidth=1.5;
+                    g.beginPath(); g.moveTo(hx+brW,hy); g.lineTo(hx+brW,hy+headerH); g.stroke();
+                    g.beginPath(); g.moveTo(rgX,hy); g.lineTo(rgX,hy+headerH); g.stroke();
+                    // índice Brasil (com Tocantins destacado em vermelho)
+                    if (brasil && brasil.todos){
+                        var bbBR=boundsDe(brasil.todos);
+                        desenhaGeo(brasil.todos, hx+6, hy+6, brW-12, headerH-12, {bbox:bbBR, cor:'#475569', fill:'#cbd5e1', lw:0.9});
+                        if (brasil.to && brasil.to.length) desenhaGeo(brasil.to, hx+6, hy+6, brW-12, headerH-12, {bbox:bbBR, cor:'#7f1d1d', fill:'#DC2626', lw:1.8});
+                    } else { texto('BRASIL', hx+brW/2, hy+headerH/2, '13px Inter, Arial', '#94a3b8', 'center'); }
+                    // índice Tocantins (contorno azul-marinho forte + marcador da vista)
+                    if (estAneis && estAneis.length){
+                        var epTO=desenhaGeo(estAneis, hx+brW+6, hy+6, toW-12, headerH-12, {cor:'#1E3A72', fill:'#b9c9e6', lw:2.6});
+                        var ccp=map.getCenter(), mp=epTO([ccp.lng,ccp.lat]);
+                        g.fillStyle='#DC2626'; g.beginPath(); g.arc(mp[0],mp[1],9,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=3; g.stroke();
+                    } else { texto('TOCANTINS', hx+brW+toW/2, hy+headerH/2, '13px Inter, Arial', '#94a3b8', 'center'); }
+                    // região direita: LOGOS (célula com moldura, em cima) + TÍTULO (embaixo)
+                    var logoCellH = Math.round(headerH*0.46);
+                    g.strokeStyle='#0f172a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(rgX, hy+logoCellH); g.lineTo(rgX+rgW, hy+logoCellH); g.stroke();
+                    // logos o maior possível dentro da célula
+                    var lgGap=24, maxH=logoCellH*0.68, maxTot=rgW*0.88;
+                    var h1=maxH, h2=maxH*1.14;
+                    var w1=logoRta?logoRta.width*(h1/logoRta.height):0, w2=logoMsi?logoMsi.width*(h2/logoMsi.height):0;
+                    var totW=w1+w2+((w1&&w2)?lgGap:0);
+                    if (totW>maxTot){ var kk=maxTot/totW; h1*=kk; h2*=kk; w1*=kk; w2*=kk; totW*=kk; }
+                    var lgCy=hy+logoCellH/2, startX=rgX+(rgW-totW)/2;
+                    if (logoRta) g.drawImage(logoRta, startX, lgCy-h1/2, w1, h1);
+                    if (logoMsi){ g.save(); g.globalCompositeOperation='multiply'; g.drawImage(logoMsi, startX+w1+((w1)?lgGap:0), lgCy-h2/2, w2, h2); g.restore(); }
+                    // título + subtítulo (célula de baixo, centralizado)
+                    var titTop=hy+logoCellH, titH=headerH-logoCellH, cxr=rgX+rgW/2;
+                    var tf=Math.round(titH*0.32), tit=(titulo||'MAPA DE LOCALIZAÇÃO').toUpperCase();
+                    var lt=quebrar(tit, rgW-40, 'bold '+tf+'px Georgia, "Times New Roman", serif');
+                    while (lt.length>2 && tf>16){ tf-=3; lt=quebrar(tit, rgW-40, 'bold '+tf+'px Georgia, serif'); }
+                    var subLn=subtitulo?quebrar(subtitulo, rgW-50, 'italic '+Math.round(tf*0.62)+'px Georgia, serif').slice(0,2):[];
+                    var blocoH=lt.length*Math.round(tf*1.16)+subLn.length*Math.round(tf*0.72);
+                    var tyy=titTop+Math.max(tf*0.9, (titH-blocoH)/2 + tf*0.85);
+                    lt.forEach(function(l){ texto(l,cxr,tyy,'bold '+tf+'px Georgia, "Times New Roman", serif','#0f172a','center'); tyy+=Math.round(tf*1.16); });
+                    if (subLn.length){ tyy+=2; subLn.forEach(function(l){ texto(l,cxr,tyy,'italic '+Math.round(tf*0.62)+'px Georgia, serif','#334155','center'); tyy+=Math.round(tf*0.72); }); }
 
                     // ---- Mapa + moldura ----
-                    var mapX=marg+pad, mapY=marg+headerH+gap+pad;
                     g.drawImage(mapCv, mapX, mapY, mW, mH);
                     g.strokeStyle='#0f172a'; g.lineWidth=2; g.strokeRect(mapX-1,mapY-1,mW+2,mH+2);
 
@@ -2156,107 +2237,74 @@ class PainelControle(MacroElement):
                             g.save(); g.translate(mapX+mW+16,pr[1]); g.rotate(-Math.PI/2); g.textAlign='center'; g.fillText(String(Math.round(n2)),0,0); g.restore(); }
                     } catch(err){ zone = null; }
 
-                    // ---- Bússola Norte-Sul (canto sup-dir do mapa) ----
-                    (function(){
-                        var r=30, nx=mapX+mW-r-24, ny=mapY+r+32;
-                        g.save();
-                        // disco de fundo
-                        g.fillStyle='rgba(255,255,255,0.9)'; g.strokeStyle='#0f172a'; g.lineWidth=2;
-                        g.beginPath(); g.arc(nx,ny,r,0,Math.PI*2); g.fill(); g.stroke();
-                        // agulha: norte (vermelho) e sul (cinza)
-                        g.beginPath(); g.moveTo(nx,ny-r*0.78); g.lineTo(nx+r*0.26,ny); g.lineTo(nx-r*0.26,ny); g.closePath();
-                        g.fillStyle='#DC2626'; g.fill();
-                        g.beginPath(); g.moveTo(nx,ny+r*0.78); g.lineTo(nx+r*0.26,ny); g.lineTo(nx-r*0.26,ny); g.closePath();
-                        g.fillStyle='#475569'; g.fill();
-                        g.fillStyle='#0f172a'; g.beginPath(); g.arc(nx,ny,2.5,0,Math.PI*2); g.fill();
-                        // letras N e S
-                        texto('N', nx, ny-r-6, 'bold 18px Inter, Arial', '#0f172a', 'center');
-                        texto('S', nx, ny+r+16, 'bold 14px Inter, Arial', '#475569', 'center');
-                        g.restore();
-                    })();
+                    // ---- Rosa dos ventos (canto sup-dir do mapa) ----
+                    rosaVentos(mapX+mW-66, mapY+66, 30);
 
-                    // ---- Coluna direita: índice / escala / logos ----
-                    var rx=marg+pad*2+mW+gap, ry=marg+headerH+gap, rH=mH+pad*2;
-                    var idxH=Math.round(rH*0.5), escH=Math.round(rH*0.24), logoH=rH-idxH-escH-gap*2;
-                    // índice do estado
-                    caixa(rx,ry,rightW,idxH);
-                    texto('ESTADO DO TOCANTINS', rx+rightW/2, ry+24, 'bold 14px Inter, Arial', '#0f172a', 'center');
-                    if (estAneis && estAneis.length){
-                        var bx0=rx+16, by0=ry+40, bw=rightW-32, bh=idxH-56;
-                        var la=1e9,lo=1e9,ua=-1e9,uo=-1e9;
-                        estAneis.forEach(function(an){ an.forEach(function(p){ if(p[0]<lo)lo=p[0]; if(p[0]>uo)uo=p[0]; if(p[1]<la)la=p[1]; if(p[1]>ua)ua=p[1]; }); });
-                        var sc=Math.min(bw/(uo-lo), bh/(ua-la))*0.92;
-                        var ox=bx0+(bw-(uo-lo)*sc)/2, oy=by0+(bh-(ua-la)*sc)/2;
-                        function ep(p){ return [ox+(p[0]-lo)*sc, oy+(ua-p[1])*sc]; }
-                        g.strokeStyle='#475569'; g.lineWidth=1;
-                        estAneis.forEach(function(an){ g.beginPath(); an.forEach(function(p,i){ var q=ep(p); if(i===0)g.moveTo(q[0],q[1]); else g.lineTo(q[0],q[1]); }); g.stroke(); });
-                        var cc=map.getCenter(), cp=ep([cc.lng,cc.lat]);
-                        g.fillStyle='#DC2626'; g.beginPath(); g.arc(cp[0],cp[1],6,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=2; g.stroke();
-                    } else { texto('(ligue "Limite do Estado")', rx+rightW/2, ry+idxH/2, '12px Inter, Arial', '#94a3b8', 'center'); }
-                    // escala
-                    var ey=ry+idxH+gap; caixa(rx,ey,rightW,escH);
+                    // ---- Legenda SOBRE o mapa (inf-esq) — tudo que estiver ativo ----
+                    var itns=itensLegenda(), legFS=15, legRowH=27;
+                    g.font=legFS+'px Inter, Arial';
+                    var maxLab=0; itns.forEach(function(it){ maxLab=Math.max(maxLab, g.measureText(it.rot).width); });
+                    var legW=Math.min(Math.max(210, maxLab+74), Math.round(mW*0.55));
+                    var legH=46 + Math.max(itns.length,1)*legRowH + 6;
+                    var lgx=mapX+18, lgy=mapY+mH-legH-18;
+                    g.fillStyle='rgba(255,255,255,0.93)'; g.fillRect(lgx,lgy,legW,legH);
+                    g.strokeStyle='#0f172a'; g.lineWidth=1.5; g.strokeRect(lgx+0.5,lgy+0.5,legW,legH);
+                    texto('LEGENDA', lgx+16, lgy+30, 'bold 19px Inter, Arial', '#0f172a');
+                    g.strokeStyle='#cbd5e1'; g.lineWidth=1; g.beginPath(); g.moveTo(lgx+14,lgy+40); g.lineTo(lgx+legW-14,lgy+40); g.stroke();
+                    if (!itns.length) texto('(nenhuma camada ativa)', lgx+16, lgy+64, '13px Inter, Arial', '#94a3b8');
+                    itns.forEach(function(it, idx){
+                        var sx=lgx+20, sy=lgy+54+idx*legRowH+legRowH*0.42;
+                        g.strokeStyle=it.cor; g.fillStyle=it.cor;
+                        if(it.tipo==='linha'){ g.lineWidth=6; g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+34,sy); g.stroke(); }
+                        else if(it.tipo==='contorno'){ g.lineWidth=2.6; g.setLineDash([7,4]); g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+34,sy); g.stroke(); g.setLineDash([]); }
+                        else if(it.tipo==='circulo'){ g.lineWidth=2.8; g.beginPath(); g.arc(sx+17,sy,8,0,7); g.stroke(); }
+                        else { g.beginPath(); g.arc(sx+17,sy,7,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=1.6; g.stroke(); }
+                        texto(it.rot, sx+48, sy+legFS*0.35, legFS+'px Inter, Arial', '#1e293b');
+                    });
+
+                    // ---- Escala SOBRE o mapa (inf-dir) ----
                     var mpp=metrosPorPixel();
+                    var barM=passoNice(mpp*mW*0.20), barPx=barM/mpp, segs=4, sw2=barPx/segs;
+                    var boxW=barPx+46, scX=mapX+mW-boxW-16, scY=mapY+mH-52, bx0=scX+22, by0=scY+26;
+                    g.fillStyle='rgba(255,255,255,0.92)'; g.fillRect(scX,scY,boxW,42);
+                    g.strokeStyle='#0f172a'; g.lineWidth=1; g.strokeRect(scX+0.5,scY+0.5,boxW,42);
+                    for(var s2=0;s2<segs;s2++){ g.fillStyle=(s2%2===0)?'#0f172a':'#fff'; g.fillRect(bx0+s2*sw2,by0,sw2,8); g.strokeStyle='#0f172a'; g.lineWidth=1; g.strokeRect(bx0+s2*sw2,by0,sw2,8); }
+                    g.fillStyle='#0f172a'; g.font='10px Inter, Arial'; g.textAlign='center';
+                    for(var t2=0;t2<=segs;t2++){ var vv=(barM/segs)*t2; g.fillText(String((barM>=1000)?(Math.round(vv/100)/10):Math.round(vv)), bx0+t2*sw2, by0-5); }
+                    g.textAlign='left'; g.font='bold 10px Inter, Arial'; g.fillStyle='#0f172a'; g.fillText((barM>=1000?'km':'m'), bx0+barPx+6, by0+8);
+
+                    // ---- Rodapé: sistema de coordenadas, fonte e data ----
                     var denom=Math.round(mpp/(0.0254/96));
-                    texto('Escala aprox. 1:'+denom.toLocaleString('pt-BR'), rx+rightW/2, ey+26, 'bold 14px Inter, Arial', '#0f172a', 'center');
-                    var barM=passoNice(mpp*mW*0.30), barPx=barM/mpp; if(barPx>rightW-70){ barM/=2; barPx/=2; }
-                    var bxs=rx+(rightW-barPx)/2, bys=ey+50;
-                    var segs=4, sw2=barPx/segs;
-                    for(var s2=0;s2<segs;s2++){ g.fillStyle=(s2%2===0)?'#0f172a':'#ffffff'; g.fillRect(bxs+s2*sw2,bys,sw2,8); g.strokeStyle='#0f172a'; g.lineWidth=1; g.strokeRect(bxs+s2*sw2,bys,sw2,8); }
-                    texto('0', bxs, bys+24, '11px Inter, Arial', '#334155', 'center');
-                    var totM=barM; texto((totM>=1000?(totM/1000)+' km':Math.round(totM)+' m'), bxs+barPx, bys+24, '11px Inter, Arial', '#334155', 'center');
-                    texto('SIRGAS 2000 / WGS 84'+(zone?(' - UTM Zona '+zone+'S'):''), rx+rightW/2, ey+escH-14, '11px Inter, Arial', '#475569', 'center');
-                    // logos
-                    var gy=ry+idxH+escH+gap*2; caixa(rx,gy,rightW,logoH);
-                    var dispY=gy+logoH/2;
-                    if (logoRta){ var h1=Math.min(66,logoH-46), w1=logoRta.width*(h1/logoRta.height); g.drawImage(logoRta, rx+rightW/2-w1-18, dispY-h1/2, w1, h1); }
-                    if (logoMsi){ var h2=Math.min(80,logoH-36), w2=logoMsi.width*(h2/logoMsi.height); g.drawImage(logoMsi, rx+rightW/2+18, dispY-h2/2, w2, h2); }
                     var dnow=new Date(); var dstr=('0'+dnow.getDate()).slice(-2)+'/'+('0'+(dnow.getMonth()+1)).slice(-2)+'/'+dnow.getFullYear();
-                    texto('RTA Engenheiros Consultores · MSI Engenharia · '+dstr, rx+rightW/2, gy+logoH-12, '11px Inter, Arial', '#475569', 'center');
+                    texto('Escala aprox. 1:'+denom.toLocaleString('pt-BR')+'  ·  Sistema de Coordenadas: SIRGAS 2000 / WGS 84 - UTM Zona '+(zone||'23')+'S  ·  Fonte da imagem: Esri World Imagery  ·  '+dstr,
+                          W/2, H-marg-2, '11px Inter, Arial', '#475569', 'center');
                     return cv;
                 }
 
-                // Captura o mapa: tiles (leaflet-image) + vetores (serialização do
-                // SVG). O leaflet-image sozinho NÃO desenha os vetores aninhados em
-                // FeatureGroups (trechos/pontos), por isso desenhamos os SVGs por cima.
+                // Captura o mapa exatamente como aparece na tela (WYSIWYG): tiles,
+                // vetores SVG, marcadores HTML E agrupamentos. Usa html-to-image só
+                // na ÁREA DO MAPA (exclui o painel/controles) — rápido (~2s) porque
+                // o painel gigante fica de fora. pixelRatio 1 p/ casar com a grade UTM.
                 function capturarMapaCanvas(){
-                    return new Promise(function(res, rej){
-                        leafletImage(map, function(err, tiles){
-                            if (err) return rej(err);
-                            try {
-                                var cont = map.getContainer(), cr = cont.getBoundingClientRect();
-                                var cv = document.createElement('canvas'); cv.width = tiles.width; cv.height = tiles.height;
-                                var ctx = cv.getContext('2d'); ctx.drawImage(tiles, 0, 0);
-                                var svgs = Array.prototype.slice.call(cont.querySelectorAll('.leaflet-overlay-pane svg, .leaflet-marker-pane svg'));
-                                (function proximo(i){
-                                    if (i >= svgs.length) return res(cv);
-                                    var svg = svgs[i], bbox;
-                                    try { bbox = svg.getBBox(); } catch(e){ return proximo(i+1); }
-                                    if (!bbox.width || !bbox.height || !svg.getScreenCTM) return proximo(i+1);
-                                    var ctm = svg.getScreenCTM();
-                                    var p = svg.createSVGPoint(); p.x = bbox.x; p.y = bbox.y;
-                                    var scr = p.matrixTransform(ctm), sc = Math.hypot(ctm.a, ctm.b) || 1;
-                                    var cl = svg.cloneNode(true);
-                                    cl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                                    cl.setAttribute('viewBox', bbox.x+' '+bbox.y+' '+bbox.width+' '+bbox.height);
-                                    cl.setAttribute('width', bbox.width); cl.setAttribute('height', bbox.height);
-                                    var xml = new XMLSerializer().serializeToString(cl);
-                                    var im = new Image();
-                                    im.onload = function(){ try { ctx.drawImage(im, scr.x-cr.left, scr.y-cr.top, bbox.width*sc, bbox.height*sc); } catch(e){} proximo(i+1); };
-                                    im.onerror = function(){ proximo(i+1); };
-                                    im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
-                                })(0);
-                            } catch(e){ rej(e); }
-                        });
+                    var cont = map.getContainer();
+                    return htmlToImage.toCanvas(cont, {
+                        skipFonts: true, backgroundColor: '#ffffff', pixelRatio: 1,
+                        filter: function(n){
+                            return !(n.classList && (n.classList.contains('leaflet-control-container')
+                                     || n.classList.contains('gp-nao-exportar')));
+                        }
                     });
                 }
                 function baixarImagem(formato, titulo, subtitulo, feito){
                     carregarLibsImg().then(function(){
                         return Promise.all([ imgDe((document.querySelector('.gp-logo-rta')||{}).src),
-                                             imgDe((document.querySelector('.gp-logo-msi')||{}).src) ]);
-                    }).then(function(logos){
-                        return capturarMapaCanvas().then(function(canvas){ return { canvas: canvas, logos: logos }; });
+                                             imgDe((document.querySelector('.gp-logo-msi')||{}).src),
+                                             carregarBrasil() ]);
+                    }).then(function(arr){
+                        var dados = { logos:[arr[0],arr[1]], brasil:arr[2] };
+                        return capturarMapaCanvas().then(function(canvas){ return { canvas: canvas, logos: dados.logos, brasil: dados.brasil }; });
                     }).then(function(o){
-                        var page = montarPrancha(o.canvas, titulo, subtitulo, o.logos[0], o.logos[1], estadoCoords());
+                        var page = montarPrancha(o.canvas, titulo, subtitulo, o.logos[0], o.logos[1], estadoCoords(), o.brasil);
                         var mime = (formato==='jpeg') ? 'image/jpeg' : 'image/png';
                         var url = page.toDataURL(mime, (formato==='jpeg')?0.92:undefined);
                         var base = (titulo || 'mapa').replace(/[^\w\- À-ÿ]+/g, '').trim().replace(/\s+/g, '_') || 'mapa';
