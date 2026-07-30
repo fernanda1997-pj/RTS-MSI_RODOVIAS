@@ -1,6 +1,6 @@
 import folium
 from folium.plugins import (Fullscreen, MousePosition, MarkerCluster,
-                            FastMarkerCluster, MeasureControl)
+                            FastMarkerCluster, MeasureControl, LocateControl)
 from branca.element import MacroElement, Template, Element
 import geopandas as gpd
 import pandas as pd
@@ -2953,6 +2953,11 @@ def create_webgis():
                    secondary_length_unit='kilometers', primary_area_unit='hectares',
                    secondary_area_unit=None, active_color='#1E3A72',
                    completed_color='#DC2626').add_to(m)
+    # GPS: botão "minha localização" (canto direito). Precisa de HTTPS (o site já é).
+    LocateControl(position='topright', flyTo=True, keepCurrentZoomLevel=False,
+                  strings={'title': 'Mostrar minha localização',
+                           'popup': 'Você está aqui (precisão de ~{distance} {unit})'},
+                  locateOptions={'enableHighAccuracy': True, 'maxZoom': 16}).add_to(m)
 
     # 4. Painel
     def fmt(n):
