@@ -1112,6 +1112,33 @@ class PainelControle(MacroElement):
             .gp-ferramentas .gp-ferr-bt.ok { background:#059669; color:#fff; }
             .gp-ferramentas .gp-ferr-bt svg { width:18px; height:18px; }
 
+            /* ---- Painel de ponto/coordenada ---- */
+            #gp-coord-panel { position:absolute; top:12px; right:56px; z-index:900; width:248px;
+                background:rgba(255,255,255,0.97); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+                border:1px solid rgba(0,0,0,0.12); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.22);
+                font-family:'Inter',-apple-system,sans-serif; padding:12px 13px; display:none; }
+            #gp-coord-panel.aberto { display:block; }
+            #gp-coord-panel h4 { margin:0 0 6px; font-size:12.5px; font-weight:700; color:#0f172a;
+                display:flex; align-items:center; justify-content:space-between; }
+            #gp-coord-panel .gp-cp-x { cursor:pointer; color:#94a3b8; font-size:18px; line-height:1; padding:0 2px; }
+            #gp-coord-panel .gp-cp-x:hover { color:#1E3A72; }
+            #gp-coord-panel label { display:block; font-size:9.5px; font-weight:600; color:#64748b;
+                text-transform:uppercase; letter-spacing:0.03em; margin:4px 0 4px; }
+            #gp-coord-panel input { width:100%; box-sizing:border-box; height:33px; padding:0 10px;
+                border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-family:inherit; outline:none; }
+            #gp-coord-panel input:focus { border-color:#1E3A72; box-shadow:0 0 0 3px rgba(30,58,114,0.1); }
+            #gp-coord-panel .gp-cp-row { margin-top:8px; }
+            #gp-coord-panel .gp-cp-bt { width:100%; height:33px; border-radius:8px; border:none; cursor:pointer;
+                font-family:inherit; font-size:11.5px; font-weight:600; transition:filter .12s; }
+            #gp-coord-panel .gp-cp-ir { background:#1E3A72; color:#fff; }
+            #gp-coord-panel .gp-cp-marcar { background:#f1f5f9; color:#334155; }
+            #gp-coord-panel .gp-cp-marcar.on { background:#059669; color:#fff; }
+            #gp-coord-panel .gp-cp-limpar { background:#fef2f2; color:#b91c1c; }
+            #gp-coord-panel .gp-cp-bt:hover { filter:brightness(1.06); }
+            #gp-coord-panel .gp-cp-dica { font-size:9.5px; color:#94a3b8; margin-top:9px; line-height:1.45; }
+            .gp-cp-marcando, .gp-cp-marcando .leaflet-interactive { cursor:crosshair !important; }
+            @media (max-width:640px){ #gp-coord-panel { right:52px; width:min(248px, calc(100vw - 66px)); } }
+
             /* ---- Exportar imagem: carimbo + janela + modo captura ---- */
             .exportando .leaflet-control-zoom, .exportando .leaflet-control-fullscreen,
             .exportando .leaflet-control-measure, .exportando .leaflet-control-mouseposition,
@@ -1948,6 +1975,7 @@ class PainelControle(MacroElement):
                 var ICON_LINK = '<svg viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.07 0l2-2a5 5 0 00-7.07-7.07l-1.1 1.1M14 11a5 5 0 00-7.07 0l-2 2a5 5 0 007.07 7.07l1.1-1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 var ICON_OK = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 var ICON_CAM = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>';
+                var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg>';
 
                 // -- Overlay de carregamento: some quando o mapa fica pronto --
                 var loadEl = document.getElementById('gp-loading');
@@ -1974,6 +2002,9 @@ class PainelControle(MacroElement):
                     options: { position: 'topright' },
                     onAdd: function(){
                         var c = L.DomUtil.create('div', 'leaflet-bar gp-ferramentas');
+                        var bpt = L.DomUtil.create('a', 'gp-ferr-bt', c);
+                        bpt.href = '#'; bpt.title = 'Ponto temporário / ir a uma coordenada';
+                        bpt.setAttribute('role', 'button'); bpt.innerHTML = ICON_PIN;
                         var bl = L.DomUtil.create('a', 'gp-ferr-bt', c);
                         bl.href = '#'; bl.title = 'Copiar link desta vista';
                         bl.setAttribute('role', 'button'); bl.innerHTML = ICON_LINK;
@@ -1981,12 +2012,78 @@ class PainelControle(MacroElement):
                         bi.href = '#'; bi.title = 'Baixar imagem (prancha PNG/JPEG)';
                         bi.setAttribute('role', 'button'); bi.innerHTML = ICON_CAM;
                         L.DomEvent.disableClickPropagation(c);
+                        L.DomEvent.on(bpt, 'click', function(e){ L.DomEvent.stop(e); abrirPainelCoord(); });
                         L.DomEvent.on(bl, 'click', function(e){ L.DomEvent.stop(e); copiarLink(bl); });
                         L.DomEvent.on(bi, 'click', function(e){ L.DomEvent.stop(e); abrirDialogoImagem(); });
                         return c;
                     }
                 });
                 new Ferramentas().addTo(map);
+
+                // -- Ponto temporário / ir a uma coordenada (com município via reverse geocoding) --
+                var pontosTmp = L.featureGroup().addTo(map);
+                var painelCoord = null, marcandoModo = false;
+                function ondeFica(lat, lng, cb){
+                    try {
+                        fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=12&addressdetails=1&lat='+lat+'&lon='+lng)
+                            .then(function(r){ return r.json(); })
+                            .then(function(j){ var a=(j&&j.address)||{};
+                                var mun=a.city||a.town||a.village||a.municipality||a.county||'';
+                                var uf=a.state||''; var txt=(mun||'')+((mun&&uf)?' - ':'')+(uf||'');
+                                cb(txt || (j&&j.display_name) || ''); })
+                            .catch(function(){ cb(''); });
+                    } catch(e){ cb(''); }
+                }
+                function popupPonto(lat, lng, local){
+                    return '<div style="font-family:Inter,-apple-system,sans-serif;font-size:12px;line-height:1.5">'
+                        + '<b style="color:#1E3A72">Ponto temporário</b><br>Lat: '+lat+'<br>Long: '+lng
+                        + (local===undefined ? '<br><i style="color:#94a3b8">buscando município…</i>' : (local?('<br>📍 '+local):''))
+                        + '</div>';
+                }
+                function soltarPonto(latlng){
+                    var lat=(+latlng.lat).toFixed(6), lng=(+latlng.lng).toFixed(6);
+                    var mk=L.marker(latlng).addTo(pontosTmp);
+                    mk.bindPopup(popupPonto(lat, lng)).openPopup();
+                    ondeFica(lat, lng, function(txt){ mk.setPopupContent(popupPonto(lat, lng, txt)); });
+                    return mk;
+                }
+                function abrirPainelCoord(){
+                    if (!painelCoord){
+                        var p=document.createElement('div'); p.id='gp-coord-panel'; p.className='gp-nao-exportar';
+                        p.innerHTML =
+                            '<h4>Ponto / Coordenada <span class="gp-cp-x" title="Fechar">&times;</span></h4>'+
+                            '<label>Ir até coordenada (lat, long)</label>'+
+                            '<input type="text" class="gp-cp-inp" placeholder="-7.170, -48.530">'+
+                            '<div class="gp-cp-row"><button type="button" class="gp-cp-bt gp-cp-ir">Ir e marcar</button></div>'+
+                            '<div class="gp-cp-row"><button type="button" class="gp-cp-bt gp-cp-marcar">Marcar clicando no mapa</button></div>'+
+                            '<div class="gp-cp-row"><button type="button" class="gp-cp-bt gp-cp-limpar">Limpar pontos</button></div>'+
+                            '<div class="gp-cp-dica">Clique em "Marcar clicando" e toque no mapa pra soltar um pino. O popup mostra a coordenada e o município.</div>';
+                        map.getContainer().appendChild(p);
+                        L.DomEvent.disableClickPropagation(p); L.DomEvent.disableScrollPropagation(p);
+                        var inp=p.querySelector('.gp-cp-inp'), btMarcar=p.querySelector('.gp-cp-marcar');
+                        p.querySelector('.gp-cp-x').addEventListener('click', function(){ p.classList.remove('aberto'); });
+                        function irCoord(){
+                            var v=inp.value.trim();
+                            var m=v.match(/(-?\d+(?:[.,]\d+)?)\s*[, ;]\s*(-?\d+(?:[.,]\d+)?)/);
+                            if(!m){ inp.style.borderColor='#dc2626'; return; }
+                            var la=parseFloat(m[1].replace(',','.')), ln=parseFloat(m[2].replace(',','.'));
+                            if(!isFinite(la)||!isFinite(ln)||la<-90||la>90||ln<-180||ln>180){ inp.style.borderColor='#dc2626'; return; }
+                            inp.style.borderColor=''; var ll=L.latLng(la,ln);
+                            map.flyTo(ll, Math.max(map.getZoom(),14)); soltarPonto(ll);
+                        }
+                        p.querySelector('.gp-cp-ir').addEventListener('click', irCoord);
+                        inp.addEventListener('keydown', function(e){ if(e.key==='Enter') irCoord(); });
+                        btMarcar.addEventListener('click', function(){
+                            marcandoModo=!marcandoModo; btMarcar.classList.toggle('on', marcandoModo);
+                            btMarcar.textContent = marcandoModo ? 'Clique no mapa… (ativo)' : 'Marcar clicando no mapa';
+                            map.getContainer().classList.toggle('gp-cp-marcando', marcandoModo);
+                        });
+                        p.querySelector('.gp-cp-limpar').addEventListener('click', function(){ pontosTmp.clearLayers(); });
+                        painelCoord=p;
+                    }
+                    painelCoord.classList.toggle('aberto');
+                }
+                map.on('click', function(e){ if (marcandoModo) soltarPonto(e.latlng); });
 
                 // -- Baixar imagem (PNG/JPEG): prancha cartográfica --
                 function carregarScriptImg(src, glob){
