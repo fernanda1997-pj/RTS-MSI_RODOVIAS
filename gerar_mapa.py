@@ -2634,6 +2634,21 @@ def create_webgis():
     for tl in (tl_padrao, tl_escuro, tl_satelite):
         tl.add_to(m)
 
+    # Satélite híbrido: mesma imagem do World_Imagery + camadas de referência
+    # da Esri (transparentes) com nome das rodovias e das cidades por cima.
+    fg_satelite_rotulos = folium.FeatureGroup(name='SatéliteRotulos', control=False)
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        max_zoom=21, max_native_zoom=17).add_to(fg_satelite_rotulos)
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+        attr='Tiles &copy; Esri', max_zoom=21, max_native_zoom=19).add_to(fg_satelite_rotulos)
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        attr='Tiles &copy; Esri', max_zoom=21, max_native_zoom=19).add_to(fg_satelite_rotulos)
+    fg_satelite_rotulos.add_to(m)
+
     # 2. Ler shapefiles
     controle = carregar_controle_pontos()
     regioes = {}
@@ -3203,6 +3218,7 @@ def create_webgis():
     m.add_child(PainelControle(
         basemaps=[{'nome': 'Padrão', 'layer': tl_padrao, 'icone': 'mapa'},
                   {'nome': 'Satélite', 'layer': tl_satelite, 'icone': 'satelite'},
+                  {'nome': 'Satélite c/ Nomes', 'layer': fg_satelite_rotulos, 'icone': 'satelite'},
                   {'nome': 'Escuro', 'layer': tl_escuro, 'icone': 'lua'}],
         default_base=tl_satelite,
         regioes=regioes_info,
