@@ -2649,6 +2649,7 @@ def create_webgis():
     contexto = {}
     bounds = []
     total_situacao = {}
+    estado_geom = None  # polígono do TO, capturado abaixo -> filtra Localidades
 
     for shp_file in sorted(camadas_dir.glob('*.shp')):
         nome = shp_file.stem
@@ -2695,6 +2696,7 @@ def create_webgis():
                 continue
 
             if tipo == 'estado':
+                estado_geom = gdf.geometry.union_all()
                 fg = folium.FeatureGroup(name='Limite do Estado', show=True, control=False)
                 folium.GeoJson(data=gdf[['geometry']],
                                style_function=lambda x: {'color': COR_ESTADO, 'weight': 2.5,
@@ -2986,6 +2988,10 @@ def create_webgis():
                 gdf_loc = gdf_loc.to_crs(4326)
             gdf_loc = limpar_atributos(gdf_loc)
             gdf_loc = gdf_loc[gdf_loc.geometry.apply(geom_valida)].copy()
+            if estado_geom is not None:
+                antes = len(gdf_loc)
+                gdf_loc = gdf_loc[gdf_loc.intersects(estado_geom)].copy()
+                print(f"  Localidades fora do TO removidas: {antes} -> {len(gdf_loc)}")
             col_nome = next((c for c in ['NM_IDENTIF', 'NM_LOC_ASS', 'NOME', 'nome']
                              if c in gdf_loc.columns), None)
             keep = ['geometry'] + ([col_nome] if col_nome else [])
