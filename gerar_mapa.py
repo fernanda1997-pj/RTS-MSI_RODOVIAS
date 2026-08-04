@@ -1094,11 +1094,17 @@ class PainelControle(MacroElement):
             #gp-legenda .gp-leg-sw { width:15px; height:4px; border-radius:2px; flex:0 0 auto; }
             #gp-legenda .gp-leg-cod { font-weight:700; color:#1e293b; }
 
-            /* ---- Rótulos das Localidades (permanentes, aparecem com zoom) ---- */
-            .loc-label { background:rgba(255,255,255,0.82); border:none; box-shadow:none;
-                color:#9d174d; font-family:'Inter',-apple-system,sans-serif;
-                font-size:9.5px; font-weight:600; padding:0 3px; border-radius:3px;
-                white-space:nowrap; -webkit-text-stroke:0; }
+            /* ---- Rótulos das Localidades (permanentes, aparecem com zoom) ----
+               Texto branco com halo escuro (sem "pílula" de fundo) — estilo
+               rótulo de mapa/satélite, legível tanto no satélite quanto nos
+               mapas claro/escuro. */
+            .loc-label { background:transparent !important; border:none; box-shadow:none;
+                color:#fff; font-family:'Inter',-apple-system,sans-serif;
+                font-size:11.5px; font-weight:700; letter-spacing:.15px;
+                padding:0; white-space:nowrap; -webkit-text-stroke:0;
+                text-shadow: -1px -1px 0 rgba(0,0,0,.75), 1px -1px 0 rgba(0,0,0,.75),
+                    -1px 1px 0 rgba(0,0,0,.75), 1px 1px 0 rgba(0,0,0,.75),
+                    0 2px 4px rgba(0,0,0,.45); }
             .loc-label::before { display:none !important; }   /* sem a setinha do tooltip */
             .loc-zoom-baixo .loc-label { display:none !important; }  /* some no zoom afastado */
 
@@ -2451,6 +2457,9 @@ class PainelControle(MacroElement):
 
                 // -- Localidades: nomes visíveis (rótulo permanente) a partir de
                 // um zoom, senão viram sopa. Some quando afasta o mapa. --
+                // bindTooltip num FeatureGroup só rotula UM marcador (o
+                // Leaflet pega o primeiro filho do grupo) — por isso o
+                // rótulo tem que ser aplicado marcador por marcador aqui.
                 (function(){
                     var cb = document.querySelector('#gp-painel input[data-key="ctx~Localidades"]');
                     if (!cb) return;
@@ -2633,21 +2642,6 @@ def create_webgis():
         name='Satélite', control=False, max_zoom=21, max_native_zoom=17)
     for tl in (tl_padrao, tl_escuro, tl_satelite):
         tl.add_to(m)
-
-    # Satélite híbrido: mesma imagem do World_Imagery + camadas de referência
-    # da Esri (transparentes) com nome das rodovias e das cidades por cima.
-    fg_satelite_rotulos = folium.FeatureGroup(name='SatéliteRotulos', control=False)
-    folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attr='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-        max_zoom=21, max_native_zoom=17).add_to(fg_satelite_rotulos)
-    folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
-        attr='Tiles &copy; Esri', max_zoom=21, max_native_zoom=19).add_to(fg_satelite_rotulos)
-    folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-        attr='Tiles &copy; Esri', max_zoom=21, max_native_zoom=19).add_to(fg_satelite_rotulos)
-    fg_satelite_rotulos.add_to(m)
 
     # 2. Ler shapefiles
     controle = carregar_controle_pontos()
@@ -3001,9 +2995,10 @@ def create_webgis():
             fg_loc = folium.FeatureGroup(name='Localidades', show=False, control=False)
             folium.GeoJson(
                 data=gdf_loc,
+                # Ponto preto (aro branco fino p/ não sumir em fundo escuro).
                 marker=folium.CircleMarker(radius=2.6, color='#fff', weight=0.8,
-                                           fill=True, fill_color=COR_LOCALIDADE,
-                                           fill_opacity=0.85),
+                                           fill=True, fill_color='#000',
+                                           fill_opacity=0.9),
                 tooltip=(folium.GeoJsonTooltip(fields=['nome'], aliases=['Localidade:'])
                          if col_nome else None),
             ).add_to(fg_loc)
@@ -3218,7 +3213,6 @@ def create_webgis():
     m.add_child(PainelControle(
         basemaps=[{'nome': 'Padrão', 'layer': tl_padrao, 'icone': 'mapa'},
                   {'nome': 'Satélite', 'layer': tl_satelite, 'icone': 'satelite'},
-                  {'nome': 'Satélite c/ Nomes', 'layer': fg_satelite_rotulos, 'icone': 'satelite'},
                   {'nome': 'Escuro', 'layer': tl_escuro, 'icone': 'lua'}],
         default_base=tl_satelite,
         regioes=regioes_info,
