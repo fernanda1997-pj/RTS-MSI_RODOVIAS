@@ -1072,17 +1072,22 @@ class PainelControle(MacroElement):
                 .gp-abrir.escondido { display:none; }
             }
 
-            /* ---- Mini-legenda de situação (canto inferior esquerdo) ---- */
-            /* Só aparece na impressão/PDF (na tela o painel já traz tudo). */
-            #gp-legenda { display:none; position:absolute; left:12px; bottom:24px; z-index:850;
+            /* ---- Legenda (caixinha discreta no canto do mapa) ----
+               Fechada por padrão (classe .recolhida); ao abrir, lista com o
+               ícone de cada categoria ativa na vista atual (situação dos
+               trechos, pontos críticos, inventário, SRE, localidades...). */
+            #gp-legenda { display:block; position:absolute; right:12px; bottom:48px; z-index:850;
                 font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
                 background:rgba(255,255,255,0.94);
                 -webkit-backdrop-filter:blur(10px) saturate(1.2); backdrop-filter:blur(10px) saturate(1.2);
                 border:1px solid rgba(0,0,0,0.08); border-radius:11px;
-                box-shadow:0 4px 18px rgba(0,0,0,0.16); padding:9px 11px 8px; max-width:186px; }
-            #gp-legenda .gp-leg-h { display:flex; align-items:center; gap:6px;
+                box-shadow:0 4px 18px rgba(0,0,0,0.16); padding:9px 11px 8px;
+                max-width:186px; max-height:min(320px, 46vh); overflow-y:auto; }
+            #gp-legenda .gp-leg-h { display:flex; align-items:center; gap:6px; cursor:pointer;
                 font-size:8.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
-                color:#94a3b8; margin-bottom:7px; }
+                color:#94a3b8; margin-bottom:0; }
+            #gp-legenda.recolhida .gp-leg-h { margin-bottom:0; }
+            #gp-legenda:not(.recolhida) .gp-leg-h { margin-bottom:7px; }
             #gp-legenda .gp-leg-h span { flex:1; }
             #gp-legenda .gp-leg-tog { cursor:pointer; width:14px; height:14px; flex:0 0 auto;
                 color:#94a3b8; transition:transform .18s, color .12s; }
@@ -1091,8 +1096,17 @@ class PainelControle(MacroElement):
             #gp-legenda.recolhida .gp-leg-body { display:none; }
             #gp-legenda .gp-leg-row { display:flex; align-items:center; gap:7px; padding:2px 0;
                 font-size:10px; color:#334155; line-height:1.25; }
-            #gp-legenda .gp-leg-sw { width:15px; height:4px; border-radius:2px; flex:0 0 auto; }
             #gp-legenda .gp-leg-cod { font-weight:700; color:#1e293b; }
+            #gp-legenda .gp-leg-vazio { font-size:10px; color:#94a3b8; padding:2px 0; }
+            /* "Ícones" da legenda — o mesmo vocabulário visual da prancha
+               exportada: barra p/ trecho, anel p/ ponto crítico, ponto
+               cheio p/ demais categorias, tracejado p/ contorno. */
+            #gp-legenda .gp-leg-sw { width:15px; height:4px; border-radius:2px; flex:0 0 auto; }
+            #gp-legenda .gp-leg-dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto;
+                border:1.4px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,0.15); }
+            #gp-legenda .gp-leg-ring { width:9px; height:9px; border-radius:50%; flex:0 0 auto;
+                border:2px solid; background:transparent; }
+            #gp-legenda .gp-leg-dash { width:15px; height:0; border-top:2.4px dashed; flex:0 0 auto; }
 
             /* ---- Rótulos das Localidades (permanentes, aparecem com zoom) ----
                Texto branco com halo escuro (sem "pílula" de fundo) — estilo
@@ -1198,16 +1212,12 @@ class PainelControle(MacroElement):
             }
         </style>
 
-        <div id="gp-legenda">
+        <div id="gp-legenda" class="recolhida">
             <div class="gp-leg-h">
-                <span>Situação dos trechos</span>
+                <span>Legenda</span>
                 <svg class="gp-leg-tog" viewBox="0 0 24 24" fill="none" title="Recolher/expandir"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
-            <div class="gp-leg-body">
-                {% for f in this.filtros_situacao %}
-                <div class="gp-leg-row"><span class="gp-leg-sw" style="background:{{ f.cor }}"></span><span class="gp-leg-cod">{{ f.codigo }}</span>{% if f.desc %}<span>{{ f.desc }}</span>{% endif %}</div>
-                {% endfor %}
-            </div>
+            <div class="gp-leg-body"></div>
         </div>
 
         <div id="gp-painel">
@@ -1994,13 +2004,19 @@ class PainelControle(MacroElement):
                 map.whenReady(function(){ setTimeout(esconderLoading, 300); });
                 setTimeout(esconderLoading, 8000);   // rede de segurança
 
-                // -- Mini-legenda: leva para dentro do mapa (aparece em tela cheia) --
+                // -- Legenda: leva para dentro do mapa (aparece em tela cheia); caixinha
+                // discreta, fechada por padrão, com o ícone de cada categoria ativa na
+                // vista atual (reaproveita itensLegenda(), a mesma lógica da prancha).
                 var legEl = document.getElementById('gp-legenda');
                 if (legEl) {
                     map.getContainer().appendChild(legEl);
                     var legH = legEl.querySelector('.gp-leg-h');
                     if (legH) legH.addEventListener('click', function(){ legEl.classList.toggle('recolhida'); });
                     L.DomEvent.disableClickPropagation(legEl);
+                    map.on('moveend zoomend', renderLegenda);
+                    document.getElementById('gp-painel').addEventListener('change', function(){ requestAnimationFrame(renderLegenda); });
+                    document.getElementById('gp-painel').addEventListener('click', function(){ requestAnimationFrame(renderLegenda); });
+                    renderLegenda();
                 }
 
                 // -- Botões flutuantes: imprimir + copiar link --
@@ -2162,11 +2178,7 @@ class PainelControle(MacroElement):
                         }
                         return false;
                     }
-                    var descSit = {};
-                    document.querySelectorAll('#gp-legenda .gp-leg-row').forEach(function(r){
-                        var cod=r.querySelector('.gp-leg-cod'), sp=r.querySelectorAll('span');
-                        if (cod) descSit[cod.textContent.trim()] = sp.length ? sp[sp.length-1].textContent.trim() : '';
-                    });
+                    var descSit = { {% for f in this.filtros_situacao %}"{{ f.codigo }}": "{{ f.desc }}"{% if not loop.last %}, {% endif %}{% endfor %} };
                     // 1) Situações de TRECHO ativas e presentes na vista
                     document.querySelectorAll('#gp-painel .gp-chips .gp-chip.on').forEach(function(ch){
                         var cod=ch.getAttribute('data-sit');
@@ -2204,6 +2216,35 @@ class PainelControle(MacroElement):
                     var hid = document.querySelector('#gp-painel input[data-key="ctx~Hidrografia"]');
                     if (hid && hid.checked && naVista([hid.getAttribute('data-camada')])) L.push({ tipo:'linha', cor:'#38BDF8', rot:'Hidrografia' });
                     return L;
+                }
+                // Preenche a caixinha de legenda na tela com o que está ativo
+                // agora (mesmos itens/cores da legenda da prancha exportada).
+                function renderLegenda(){
+                    if (!legEl) return;
+                    var body = legEl.querySelector('.gp-leg-body');
+                    if (!body) return;
+                    var itns = itensLegenda();
+                    body.innerHTML = '';
+                    if (!itns.length) {
+                        var v = document.createElement('div');
+                        v.className = 'gp-leg-vazio';
+                        v.textContent = 'Nenhuma camada ativa';
+                        body.appendChild(v);
+                        return;
+                    }
+                    itns.forEach(function(it){
+                        var row = document.createElement('div');
+                        row.className = 'gp-leg-row';
+                        var ic = document.createElement('span');
+                        ic.className = 'gp-leg-' + (it.tipo==='linha' ? 'sw' :
+                            it.tipo==='contorno' ? 'dash' : it.tipo==='circulo' ? 'ring' : 'dot');
+                        if (it.tipo==='linha' || it.tipo==='ponto') ic.style.background = it.cor;
+                        else ic.style.borderColor = it.cor;
+                        var lbl = document.createElement('span');
+                        lbl.textContent = it.rot;
+                        row.appendChild(ic); row.appendChild(lbl);
+                        body.appendChild(row);
+                    });
                 }
                 function estadoCoords(){
                     var est = document.querySelector('#gp-painel input[data-key="ctx~Limite do Estado"]');
