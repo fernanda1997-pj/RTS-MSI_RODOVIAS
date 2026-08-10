@@ -1,0 +1,1132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="pt">
+	<Esri>
+		<CreaDate>20260810</CreaDate>
+		<CreaTime>08301900</CreaTime>
+		<ArcGISFormat>1.0</ArcGISFormat>
+		<SyncOnce>FALSE</SyncOnce>
+		<DataProperties>
+			<itemProps>
+				<itemLocation>
+					<linkage Sync="TRUE">file://\\DESKTOP-DQ2LS0L\C$\1. Projetos\RTA\web\camadas\shape_rodovias_federal.shp</linkage>
+					<protocol Sync="TRUE">Local Area Network</protocol>
+				</itemLocation>
+				<itemName Sync="TRUE">shape_rodovias_federal</itemName>
+				<imsContentType Sync="TRUE" export="False">002</imsContentType>
+				<nativeExtBox>
+					<westBL Sync="TRUE">-50.657559</westBL>
+					<eastBL Sync="TRUE">-45.972756</eastBL>
+					<southBL Sync="TRUE">-13.262926</southBL>
+					<northBL Sync="TRUE">-5.187314</northBL>
+					<exTypeCode Sync="TRUE">1</exTypeCode>
+				</nativeExtBox>
+				<itemSize Sync="TRUE">0.000</itemSize>
+			</itemProps>
+			<coordRef>
+				<type Sync="TRUE">Geographic</type>
+				<geogcsn Sync="TRUE">GCS_South_American_1969</geogcsn>
+				<csUnits Sync="TRUE">Angular Unit: Degree (0.017453)</csUnits>
+				<peXml Sync="TRUE">&lt;GeographicCoordinateSystem xsi:type='typens:GeographicCoordinateSystem' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:typens='http://www.esri.com/schemas/ArcGIS/10.7'&gt;&lt;WKT&gt;GEOGCS[&amp;quot;GCS_South_American_1969&amp;quot;,DATUM[&amp;quot;D_South_American_1969&amp;quot;,SPHEROID[&amp;quot;GRS_1967_Truncated&amp;quot;,6378160.0,298.25]],PRIMEM[&amp;quot;Greenwich&amp;quot;,0.0],UNIT[&amp;quot;Degree&amp;quot;,0.0174532925199433],AUTHORITY[&amp;quot;EPSG&amp;quot;,4618]]&lt;/WKT&gt;&lt;XOrigin&gt;-400&lt;/XOrigin&gt;&lt;YOrigin&gt;-400&lt;/YOrigin&gt;&lt;XYScale&gt;11258999068426.238&lt;/XYScale&gt;&lt;ZOrigin&gt;-100000&lt;/ZOrigin&gt;&lt;ZScale&gt;10000&lt;/ZScale&gt;&lt;MOrigin&gt;-100000&lt;/MOrigin&gt;&lt;MScale&gt;10000&lt;/MScale&gt;&lt;XYTolerance&gt;8.9831204474460232e-09&lt;/XYTolerance&gt;&lt;ZTolerance&gt;0.001&lt;/ZTolerance&gt;&lt;MTolerance&gt;0.001&lt;/MTolerance&gt;&lt;HighPrecision&gt;true&lt;/HighPrecision&gt;&lt;LeftLongitude&gt;-180&lt;/LeftLongitude&gt;&lt;WKID&gt;4291&lt;/WKID&gt;&lt;LatestWKID&gt;4618&lt;/LatestWKID&gt;&lt;/GeographicCoordinateSystem&gt;</peXml>
+			</coordRef>
+			<copyHistory>
+				<copy source="D:\Temp\Rodovias_2018" dest="\\10.9.7.2\GABSUB_SPL\SUPLADE\DIPEINFE\GIES\seplan\bdados\Copiar_DZE_arquivos_publicos\Tocantins\TO_Base_Dados_Geograficos_atual_abr2019\Rodovias_2018" date="20190730" time="10554200"/>
+			</copyHistory>
+			<lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.8\ArcToolbox\Toolboxes\Data Management Tools.tbx\CopyFeatures" Date="20260810" Time="083726">CopyFeatures shape_rodovias_federal "C:\1. Projetos\RTA\web\camadas\shape_rodovias_federal.shp" # 0 0 0</Process></lineage></DataProperties>
+		<ModDate>20260810</ModDate>
+		<ModTime>08372600</ModTime>
+		<scaleRange>
+			<minScale>500000</minScale>
+			<maxScale>50000</maxScale>
+		</scaleRange>
+		<ArcGISProfile>NAP</ArcGISProfile>
+		<ArcGISstyle>North American Profile of ISO19115 2003</ArcGISstyle>
+		<SyncDate>20260810</SyncDate>
+		<SyncTime>08372600</SyncTime>
+		<locales>
+			<locale language="por" country="BR"/>
+		</locales>
+	</Esri>
+	<dataIdInfo>
+		<idPurp>Plano de informação de Rodovias, com referencia ao ano de 2018 e recorte espacial para o estado do Tocantins. Dado oriundo da Base de Dados Geográficos da Malha Rodoviária do Estado do Tocantins (AGETO, 2018). Constituído a partir de levantamento de campo com Global Position System (GPS) de precisão e atualização com apoio de sistema de informação geográfica e imagens orbitais, associado a dados de campo. Integra a Base de Dados Geográficos do Tocantins – atualização 2018.</idPurp>
+		<idAbs>&lt;DIV STYLE="text-align:Left;"&gt;&lt;DIV&gt;&lt;DIV&gt;&lt;P&gt;&lt;SPAN&gt;&lt;SPAN&gt;Contém arquivo digital vetorial estruturado em sistema de informações geográficas no ambiente ArcGIS com sistema de referência SAD 69, referente a base multitemporal da malha rodoviária do Estado do Tocantins. Esta base tem como referência informações oficiais da rede rodoviária publicada nos mapas analógicos (anos de 1991 e 2000 a 2008) e nas bases georreferenciada (anos de 2006, 2007, 2009, 2011 e 2013) do Governo do Estado do Tocantins, e no mapa analógico de rodovias do IBGE (ano de 1993). A metodologia para elaboração do arquivo envolveu: estruturação e carga de banco de dados geográficos; digitalização e georreferenciamento de mapas analógicos; vetorização do traçado da malha; integração e classificação de vetores e bases georreferenciadas pré-existentes. Como referência para elaboração do traçado e parâmetros do arquivo utilizou-se a &lt;/SPAN&gt;&lt;/SPAN&gt;&lt;SPAN STYLE="font-style:italic;"&gt;&lt;SPAN&gt;Base de Dados Geográficos da Malha Rodoviária do Estado do Tocantins (&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;SPAN&gt;&lt;SPAN&gt;Seinf/Dertins, 2011), obtida através de levantamento e pós-processamento de dados de campo com GPS de precisão. Considerando-se a multiplicidade de fontes para obtenção do presente arquivo, indica-se que sua escala de referência seja equivalente a 1:100.000 ou menor.&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;/P&gt;&lt;P STYLE="text-align:Justify;margin:0 0 0 0;"&gt;&lt;SPAN&gt;&lt;SPAN&gt;Este produto corresponde a atualizações de dados vetoriais temáticos geoespaciais da &lt;/SPAN&gt;&lt;/SPAN&gt;&lt;SPAN STYLE="font-style:italic;"&gt;&lt;SPAN&gt;Base de Dados Geográficos do Estado do Tocantins&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;SPAN&gt;&lt;SPAN&gt;, gerados no âmbito de diversos projetos e atividades desenvolvidas no território tocantinense. Estas informações foram sistematizadas e atualizadas pela equipe técnica da Diretoria de Gestão de Informações Territoriais e Socioeconômicas da Secretaria da Fazenda e Planejamento do Estado do Tocantins (SEFAZ), empregando-se ferramentas do Laboratório de Geoprocessamento da Gerência de Zoneamento Territorial.&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;/P&gt;&lt;P&gt;&lt;SPAN /&gt;&lt;SPAN /&gt;&lt;/P&gt;&lt;/DIV&gt;&lt;/DIV&gt;&lt;/DIV&gt;</idAbs>
+		<idCredit>Elaborado pela Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ-TO / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</idCredit>
+		<idCitation>
+			<resTitle>Rodovias</resTitle>
+			<presForm>
+				<PresFormCd value="005" Sync="TRUE"/>
+			</presForm>
+			<date>
+				<createDate>2019-04-16T00:00:00</createDate>
+				<pubDate>2019-04-29T00:00:00</pubDate>
+			</date>
+		</idCitation>
+		<searchKeys>
+			<keyword>1. Rodovias. 2. Base de Dados Geográficos do Tocantins - atualização 2018. 3. Secretaria da Fazenda e Planejamento. 4. Estado do Tocantins.</keyword>
+		</searchKeys>
+		<dataExt>
+			<geoEle xmlns="">
+				<GeoBndBox esriExtentType="search">
+					<exTypeCode>0</exTypeCode>
+					<westBL Sync="TRUE">-50.657559</westBL>
+					<eastBL Sync="TRUE">-45.972756</eastBL>
+					<northBL Sync="TRUE">-5.187314</northBL>
+					<southBL Sync="TRUE">-13.262926</southBL>
+				</GeoBndBox>
+			</geoEle>
+		</dataExt>
+		<resConst>
+			<Consts>
+				<useLimit>&lt;DIV STYLE="text-align:Left;"&gt;&lt;DIV&gt;&lt;DIV&gt;&lt;P STYLE="font-weight:bold;margin:0 0 0 0;"&gt;&lt;SPAN&gt;&lt;SPAN&gt;Restrições Legais&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;/P&gt;&lt;P STYLE="text-align:Justify;margin:0 0 0 0;"&gt;&lt;SPAN STYLE="font-weight:bold;"&gt;&lt;SPAN&gt;Restrição de Acesso&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;SPAN&gt;&lt;SPAN&gt;: Sem restrições.&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;/P&gt;&lt;P STYLE="text-align:Justify;margin:0 0 0 0;"&gt;&lt;SPAN STYLE="font-weight:bold;"&gt;&lt;SPAN&gt;Restrição de Uso:&lt;/SPAN&gt;&lt;/SPAN&gt;&lt;SPAN /&gt;&lt;SPAN&gt;Qualquer reprodução total ou parcial deste dado só será permitida com autorização da Diretoria de Gestão de Informações Territoriais e Socioeconômicas da Secretaria da Fazenda e Planejamento do Estado do Tocantins e/ou respectivo crédito.&lt;/SPAN&gt;&lt;/P&gt;&lt;/DIV&gt;&lt;/DIV&gt;&lt;/DIV&gt;</useLimit>
+			</Consts>
+		</resConst>
+		<envirDesc Sync="TRUE"> Version 6.2 (Build 9200) ; Esri ArcGIS 10.8.0.12790</envirDesc>
+		<dataLang>
+			<languageCode value="por" Sync="TRUE"/>
+			<countryCode value="BRA" Sync="TRUE"/>
+		</dataLang>
+		<spatRpType>
+			<SpatRepTypCd value="001" Sync="TRUE"/>
+		</spatRpType>
+		<tpCat>
+			<TopicCatCd value="015"/>
+		</tpCat>
+		<tpCat>
+			<TopicCatCd value="017"/>
+		</tpCat>
+		<tpCat>
+			<TopicCatCd value="019"/>
+		</tpCat>
+	</dataIdInfo>
+	<Binary>
+		<Thumbnail>
+			<Data EsriPropertyType="PictureX">/9j/4AAQSkZJRgABAQEAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a
+HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIy
+MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCACFAMgDASIA
+AhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQA
+AAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3
+ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWm
+p6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEA
+AwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSEx
+BhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElK
+U1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3
+uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iii
+gAooooAKKKKACiiigAooooAKKKZLFHPE0U0aSRsMMjjII9waAI0vbWS5ktluIzPGwV49w3Aldw4+
+hzU9Yut2NnFoEsa2cbCPDQxrFu/ebgV4AJ5bGcAnrXOW76ppbwpoflvp8+6VQ8RwcbV2xqSCVwwI
+yQSwznZ06IUVNXi7eor2O9oqOCVZreOVW3K6hg2CMgjrg8ipK5xhRRRQAUUUUAFFFFABRRRQAUUU
+UAFFFFABRRRQAUUUUAFFFFABRRRQAUUVBd+dJYT/AGNwJ2ibyWyMbsfKe464ppXAzvEd2bTTw5+R
+Ayv5xG4Rsrqw3LjJGA3TBOMA5YVzVvNY2fiCU63P5Uty2+NTI0aw9CCFDYTlyWJ/iYYJ5IsCzFrZ
+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</Data>
+		</Thumbnail>
+	</Binary>
+	<mdDateSt Sync="TRUE">20260810</mdDateSt>
+	<mdLang>
+		<languageCode value="por" Sync="TRUE"/>
+		<countryCode value="BRA" Sync="TRUE"/>
+	</mdLang>
+	<distInfo>
+		<distFormat>
+			<formatName Sync="TRUE">Shapefile</formatName>
+			<formatVer>GCS SIRGAS 2000</formatVer>
+		</distFormat>
+		<distTranOps>
+			<transSize Sync="TRUE">0.000</transSize>
+		</distTranOps>
+	</distInfo>
+	<mdHrLv>
+		<ScopeCd value="005" Sync="TRUE"/>
+	</mdHrLv>
+	<mdHrLvName Sync="TRUE">dataset</mdHrLvName>
+	<refSysInfo>
+		<RefSystem dimension="temporal">
+			<refSysID xmlns="">
+				<identCode code="4618" Sync="FALSE"/>
+				<idCodeSpace Sync="TRUE">EPSG</idCodeSpace>
+				<idVersion Sync="FALSE">GCS SAD 1969</idVersion>
+			</refSysID>
+		</RefSystem>
+	</refSysInfo>
+	<spatRepInfo>
+		<VectSpatRep><geometObjs Name="shape_rodovias_federal"><geoObjTyp><GeoObjTypCd value="002" Sync="TRUE"></GeoObjTypCd></geoObjTyp><geoObjCnt Sync="TRUE">0</geoObjCnt></geometObjs><topLvl><TopoLevCd value="001" Sync="TRUE"></TopoLevCd></topLvl></VectSpatRep></spatRepInfo>
+	<spdoinfo>
+		<ptvctinf><esriterm Name="shape_rodovias_federal"><efeatyp Sync="TRUE">Simple</efeatyp><efeageom code="3" Sync="TRUE"></efeageom><esritopo Sync="TRUE">FALSE</esritopo><efeacnt Sync="TRUE">0</efeacnt><spindex Sync="TRUE">FALSE</spindex><linrefer Sync="TRUE">FALSE</linrefer></esriterm></ptvctinf></spdoinfo>
+	<eainfo>
+		<detailed Name="shape_rodovias_federal">
+			<enttyp>
+				<enttypl Sync="TRUE">shape_rodovias_federal</enttypl>
+				<enttypt Sync="TRUE">Feature Class</enttypt>
+				<enttypc Sync="TRUE">0</enttypc>
+			</enttyp>
+			<attr>
+				<attrlabl Sync="TRUE">FID</attrlabl>
+				<attalias Sync="TRUE">FID</attalias>
+				<attrtype Sync="TRUE">OID</attrtype>
+				<attwidth Sync="TRUE">4</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+				<attrdef Sync="TRUE">Internal feature number.</attrdef>
+				<attrdefs Sync="TRUE">Esri</attrdefs>
+				<attrdomv>
+					<udom Sync="TRUE">Sequential unique whole numbers that are automatically generated.</udom>
+				</attrdomv>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">OBJECTID</attrlabl>
+				<attalias Sync="TRUE">OBJECTID</attalias>
+				<attrtype Sync="TRUE">Integer</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">10</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+				<attrdef Sync="TRUE">Internal feature number.</attrdef>
+				<attrdefs Sync="TRUE">Esri</attrdefs>
+				<attrdomv>
+					<udom Sync="TRUE">Sequential unique whole numbers that are automatically generated.</udom>
+				</attrdomv>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">SHAPE</attrlabl>
+				<attalias Sync="TRUE">Shape</attalias>
+				<attrtype Sync="TRUE">Geometry</attrtype>
+				<attwidth Sync="TRUE">0</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+				<attrdef Sync="TRUE">Feature geometry.</attrdef>
+				<attrdefs Sync="TRUE">Esri</attrdefs>
+				<attrdomv>
+					<udom Sync="TRUE">Coordinates defining the features.</udom>
+				</attrdomv>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris</attrlabl>
+				<attalias Sync="TRUE">Juris</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Legenda</attrlabl>
+				<attalias Sync="TRUE">Legenda</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">ExtLay</attrlabl>
+				<attalias Sync="TRUE">ExtLay</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">19</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">NmNomeVia</attrlabl>
+				<attalias Sync="TRUE">NmNomeVia</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">16</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Classe</attrlabl>
+				<attalias Sync="TRUE">Classe</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">NmMun</attrlabl>
+				<attalias Sync="TRUE">NmMun</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">NumerVia</attrlabl>
+				<attalias Sync="TRUE">NumerVia</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">8</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Resid</attrlabl>
+				<attalias Sync="TRUE">Resid</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">ExtKm</attrlabl>
+				<attalias Sync="TRUE">ExtKm</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">19</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Codigo</attrlabl>
+				<attalias Sync="TRUE">Codigo</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">CodSobrepo</attrlabl>
+				<attalias Sync="TRUE">CodSobrepo</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">35</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Conexoes</attrlabl>
+				<attalias Sync="TRUE">Conexoes</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">35</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">InicioKm</attrlabl>
+				<attalias Sync="TRUE">InicioKm</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">5</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">FimKm</attrlabl>
+				<attalias Sync="TRUE">FimKm</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">5</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">TipoRev</attrlabl>
+				<attalias Sync="TRUE">TipoRev</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">12</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">TCoinc1</attrlabl>
+				<attalias Sync="TRUE">TCoinc1</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">TCoinc2</attrlabl>
+				<attalias Sync="TRUE">TCoinc2</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">TCoinc3</attrlabl>
+				<attalias Sync="TRUE">TCoinc3</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">FedSuper</attrlabl>
+				<attalias Sync="TRUE">FedSuper</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Titular</attrlabl>
+				<attalias Sync="TRUE">Titular</attalias>
+				<attrtype Sync="TRUE">Integer</attrtype>
+				<attwidth Sync="TRUE">5</attwidth>
+				<atprecis Sync="TRUE">5</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">TrecIni</attrlabl>
+				<attalias Sync="TRUE">TrecIni</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">150</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Conclusao</attrlabl>
+				<attalias Sync="TRUE">Conclusao</attalias>
+				<attrtype Sync="TRUE">Integer</attrtype>
+				<attwidth Sync="TRUE">5</attwidth>
+				<atprecis Sync="TRUE">5</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class1991</attrlabl>
+				<attalias Sync="TRUE">Class1991</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class1992</attrlabl>
+				<attalias Sync="TRUE">Class1992</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class1993</attrlabl>
+				<attalias Sync="TRUE">Class1993</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2000</attrlabl>
+				<attalias Sync="TRUE">Class2000</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2001</attrlabl>
+				<attalias Sync="TRUE">Class2001</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2002</attrlabl>
+				<attalias Sync="TRUE">Class2002</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2003</attrlabl>
+				<attalias Sync="TRUE">Class2003</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2004</attrlabl>
+				<attalias Sync="TRUE">Class2004</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2005</attrlabl>
+				<attalias Sync="TRUE">Class2005</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2006</attrlabl>
+				<attalias Sync="TRUE">Class2006</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2007</attrlabl>
+				<attalias Sync="TRUE">Class2007</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2008</attrlabl>
+				<attalias Sync="TRUE">Class2008</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2009</attrlabl>
+				<attalias Sync="TRUE">Class2009</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2010</attrlabl>
+				<attalias Sync="TRUE">Class2010</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2011</attrlabl>
+				<attalias Sync="TRUE">Class2011</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2012</attrlabl>
+				<attalias Sync="TRUE">Class2012</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2013</attrlabl>
+				<attalias Sync="TRUE">Class2013</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2014</attrlabl>
+				<attalias Sync="TRUE">Class2014</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2015</attrlabl>
+				<attalias Sync="TRUE">Class2015</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2016</attrlabl>
+				<attalias Sync="TRUE">Class2016</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2017</attrlabl>
+				<attalias Sync="TRUE">Class2017</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2018</attrlabl>
+				<attalias Sync="TRUE">Class2018</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2019</attrlabl>
+				<attalias Sync="TRUE">Class2019</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Class2020</attrlabl>
+				<attalias Sync="TRUE">Class2020</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">50</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris1991</attrlabl>
+				<attalias Sync="TRUE">Juris1991</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris1992</attrlabl>
+				<attalias Sync="TRUE">Juris1992</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris1993</attrlabl>
+				<attalias Sync="TRUE">Juris1993</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2000</attrlabl>
+				<attalias Sync="TRUE">Juris2000</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2001</attrlabl>
+				<attalias Sync="TRUE">Juris2001</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2002</attrlabl>
+				<attalias Sync="TRUE">Juris2002</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2003</attrlabl>
+				<attalias Sync="TRUE">Juris2003</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2004</attrlabl>
+				<attalias Sync="TRUE">Juris2004</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2005</attrlabl>
+				<attalias Sync="TRUE">Juris2005</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2006</attrlabl>
+				<attalias Sync="TRUE">Juris2006</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2007</attrlabl>
+				<attalias Sync="TRUE">Juris2007</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2008</attrlabl>
+				<attalias Sync="TRUE">Juris2008</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2009</attrlabl>
+				<attalias Sync="TRUE">Juris2009</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2010</attrlabl>
+				<attalias Sync="TRUE">Juris2010</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2011</attrlabl>
+				<attalias Sync="TRUE">Juris2011</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2012</attrlabl>
+				<attalias Sync="TRUE">Juris2012</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2013</attrlabl>
+				<attalias Sync="TRUE">Juris2013</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2014</attrlabl>
+				<attalias Sync="TRUE">Juris2014</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2015</attrlabl>
+				<attalias Sync="TRUE">Juris2015</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2016</attrlabl>
+				<attalias Sync="TRUE">Juris2016</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2017</attrlabl>
+				<attalias Sync="TRUE">Juris2017</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2018</attrlabl>
+				<attalias Sync="TRUE">Juris2018</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2019</attrlabl>
+				<attalias Sync="TRUE">Juris2019</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Juris2020</attrlabl>
+				<attalias Sync="TRUE">Juris2020</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">32</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome1991</attrlabl>
+				<attalias Sync="TRUE">Nome1991</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome1992</attrlabl>
+				<attalias Sync="TRUE">Nome1992</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome1993</attrlabl>
+				<attalias Sync="TRUE">Nome1993</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2000</attrlabl>
+				<attalias Sync="TRUE">Nome2000</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2001</attrlabl>
+				<attalias Sync="TRUE">Nome2001</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2002</attrlabl>
+				<attalias Sync="TRUE">Nome2002</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2003</attrlabl>
+				<attalias Sync="TRUE">Nome2003</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2004</attrlabl>
+				<attalias Sync="TRUE">Nome2004</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2005</attrlabl>
+				<attalias Sync="TRUE">Nome2005</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2006</attrlabl>
+				<attalias Sync="TRUE">Nome2006</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2007</attrlabl>
+				<attalias Sync="TRUE">Nome2007</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2008</attrlabl>
+				<attalias Sync="TRUE">Nome2008</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2009</attrlabl>
+				<attalias Sync="TRUE">Nome2009</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2010</attrlabl>
+				<attalias Sync="TRUE">Nome2010</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2011</attrlabl>
+				<attalias Sync="TRUE">Nome2011</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2012</attrlabl>
+				<attalias Sync="TRUE">Nome2012</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2013</attrlabl>
+				<attalias Sync="TRUE">Nome2013</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2014</attrlabl>
+				<attalias Sync="TRUE">Nome2014</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2015</attrlabl>
+				<attalias Sync="TRUE">Nome2015</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2016</attrlabl>
+				<attalias Sync="TRUE">Nome2016</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2017</attrlabl>
+				<attalias Sync="TRUE">Nome2017</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2018</attrlabl>
+				<attalias Sync="TRUE">Nome2018</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2019</attrlabl>
+				<attalias Sync="TRUE">Nome2019</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Nome2020</attrlabl>
+				<attalias Sync="TRUE">Nome2020</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">15</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">SHAPE_Leng</attrlabl>
+				<attalias Sync="TRUE">SHAPE_Leng</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">19</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Shape_Le_1</attrlabl>
+				<attalias Sync="TRUE">Shape_Le_1</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">19</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+		</detailed>
+	</eainfo>
+	<mdChar>
+		<CharSetCd value="004" Sync="TRUE"/>
+	</mdChar>
+	<mdFileID>C3CFD797-D33B-4A81-B32F-50AC5E7A12C5</mdFileID>
+	<mdMaint>
+		<maintCont>
+			<rpOrgName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</rpOrgName>
+			<rpCntInfo>
+				<cntAddress addressType="">
+					<delPoint>AANO - Esplanada das Secretarias, s/n, Centro</delPoint>
+					<city>Palmas</city>
+					<adminArea>Tocantins</adminArea>
+					<postCode>77001-002</postCode>
+					<eMailAdd>rodrigo.borges@sefaz.to.gov.br; cecilia.costa@sefaz.to.gov.br; leandro.roeder@sefaz.to.gov.br; paulo.sousa@sefaz.to.gov.br</eMailAdd>
+					<country>BR</country>
+				</cntAddress>
+				<cntPhone>
+					<voiceNum tddtty="False">(63) 3212-4495; 3212-4482; 3212-4494; 3212-4493</voiceNum>
+				</cntPhone>
+			</rpCntInfo>
+			<displayName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</displayName>
+			<rpIndName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ /</rpIndName>
+			<role>
+				<RoleCd value="003"/>
+			</role>
+		</maintCont>
+		<maintFreq>
+			<MaintFreqCd value="008"/>
+		</maintFreq>
+	</mdMaint>
+	<dqInfo>
+		<dataLineage>
+			<statement>Declaração: O plano de informações de rodovias foi elaborado e atualizado pela equipe técnica da Diretoria de Gerenciamento de Pavimentação e Controle da Agência Tocantinense de Transportes e Obras (AGETO), tendo sido cedido à Diretoria de Gestão de Informações Territoriais e Socioeconômicas da Secretaria da Fazenda e Planejamento e posteriormente incorporado à sua base de dados.</statement>
+			<prcStep>
+				<stepDesc>O plano de informações sistema rodoviário foi constituído a partir de levantamentos de campo executados com equipamento Global Position System (GPS) de precisão L1, pós-processado com apoio do programa GPS Pathifinder Office. Este levantamento foi executado entre 2006 e 2010 pela equipe técnica do antigo Departamento de Estradas de Rodagem do Estado do Tocantins (Dertins), com apoio de uma base de imagens de satélite CBERS2 de 2005 (Inpe); do Plano Nacional de Viação do Departamento Nacional de Infra-Estrutura de Transportes (DNIT, 2006); da Base de Dados Geográficos do Tocantins (SEPLAN, 2000). Em outubro de 2011, foi executada nova atualização pela equipe técnica da Secretaria da Infraestrutura do Estado do Tocantins do Estado do Tocantins (Seinfra). Posteriormente, foram realizadas atualização com apoio de sistema de informação geográfica e imagens orbitais, associado a dados de campo.</stepDesc>
+				<stepProc>
+					<rpOrgName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</rpOrgName>
+					<rpCntInfo>
+						<cntAddress addressType="">
+							<delPoint>AANO - Esplanada das Secretarias, s/n, Centro</delPoint>
+							<city>Palmas</city>
+							<adminArea>Tocantins</adminArea>
+							<postCode>77001-002</postCode>
+							<eMailAdd>rodrigo.borges@sefaz.to.gov.br; cecilia.costa@sefaz.to.gov.br; leandro.roeder@sefaz.to.gov.br;</eMailAdd>
+							<country>BR</country>
+						</cntAddress>
+						<cntPhone>
+							<voiceNum tddtty="False">(63) 3212-4495; 3212-4482; 3212-4494</voiceNum>
+						</cntPhone>
+					</rpCntInfo>
+					<rpIndName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ</rpIndName>
+					<rpPosName>Diretor / Gerência</rpPosName>
+					<displayName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</displayName>
+					<role>
+						<RoleCd value="003"/>
+					</role>
+				</stepProc>
+			</prcStep>
+			<dataSource type="">
+				<srcDesc>Base de Dados Geográficos da Malha Rodoviária do Estado do Tocantins. 2018. Agência Tocantinense de Transportes e Obras (AGETO). Diretoria de Gerenciamento de Pavimentação e Controle. Palmas: AGETO. dezembro/2018.
+Imagens de satélite CBERS2, ano 2005. Instituto Nacional de Pesquisas Espaciais. 
+Plano Nacional de Viação. 2006. Ministério dos Transportes. Departamento Nacional de Infraestrutura de Transportes (DNIT). Brasília: DNIT.
+Base de Dados Geográficos do Tocantins. 2000. Secretaria do Planejamento e Meio Ambiente (SEPLAN). Diretoria de Zoneamento Ecológico-Econômico (DZE). Atlas Digital do Tocantins - Base de Dados Geográficos. versão 1.0. Palmas, Seplan/DZE, 2000. 2 CD-ROM.
+</srcDesc>
+				<srcMedName>
+					<MedNameCd value="031"/>
+				</srcMedName>
+				<srcScale>
+					<rfDenom>1100000</rfDenom>
+				</srcScale>
+				<srcRefSys>
+					<identCode code="GCS SIRGAS 2000"/>
+					<idCodeSpace>4674</idCodeSpace>
+					<idVersion>GCS SIRGAS 2000</idVersion>
+				</srcRefSys>
+				<srcCitatn>
+					<resTitle>Rodovias</resTitle>
+					<date>
+						<createDate>2019-04-16T00:00:00</createDate>
+						<reviseDate>2019-04-29T00:00:00</reviseDate>
+					</date>
+				</srcCitatn>
+			</dataSource>
+		</dataLineage>
+		<dqScope>
+			<scpLvl>
+				<ScopeCd value="005"/>
+			</scpLvl>
+		</dqScope>
+	</dqInfo>
+	<mdContact>
+		<rpOrgName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</rpOrgName>
+		<rpCntInfo>
+			<cntAddress addressType="">
+				<delPoint>AANO - Esplanada das Secretarias, s/n, Centro</delPoint>
+				<city>Palmas</city>
+				<adminArea>Tocantins</adminArea>
+				<postCode>77001-002</postCode>
+				<eMailAdd>rodrigo.borges@sefaz.to.gov.br; cecilia.costa@sefaz.to.gov.br; leandro.roeder@sefaz.to.gov.br;</eMailAdd>
+				<country>BR</country>
+			</cntAddress>
+			<cntPhone>
+				<voiceNum tddtty="False">(63) 3212-4495; 3212-4482; 3212-4494</voiceNum>
+			</cntPhone>
+		</rpCntInfo>
+		<displayName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ / Superintendencia de Planejamento Governamental / Diretoria de Gestão de Informações Territoriais e Socioeconômicas / Gerência de Zoneamento Territorial.</displayName>
+		<rpIndName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ /</rpIndName>
+		<role>
+			<RoleCd value="003"/>
+		</role>
+		<editorSave>False</editorSave>
+		<displayName>Secretaria da Fazenda e Planejamento do Estado do Tocantins - SEFAZ /</displayName>
+	</mdContact>
+</metadata>

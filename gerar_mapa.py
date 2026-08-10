@@ -160,6 +160,7 @@ COR_CRITICO = '#ef2b2b'
 COR_ESTADO = '#94A3B8'  # slate: legível no satélite E no painel branco
 COR_HIDRO = '#38BDF8'   # azul-céu
 COR_LOCALIDADE = '#EC4899'  # rosa: distinto do bueiro (roxo), situações, críticos e hidro
+COR_ROD_FEDERAL = '#DC2626'  # vermelho: rodovias federais (contexto)
 
 # Situação dos trechos (códigos oficiais do SRE) -> (descrição, cor).
 # As cores são agrupadas por FAMÍLIA para o mapa se ler à distância:
@@ -339,6 +340,8 @@ def classificar(nome):
     n = _sem_acento(nome).replace('_', ' ').replace('-', ' ')
     if n.startswith('hidrografia'):        # antes de 'estado' (hidrografia_estado)
         return 'hidrografia'
+    if 'rodovia federal' in n or 'rodovias federal' in n:
+        return 'rodovias_federal'
     if 'estado' in n and 'tocantins' in n:
         return 'estado'
     if 'pontos criticos' in n or 'ponto critico' in n:
@@ -2215,6 +2218,8 @@ class PainelControle(MacroElement):
                     }
                     var hid = document.querySelector('#gp-painel input[data-key="ctx~Hidrografia"]');
                     if (hid && hid.checked && naVista([hid.getAttribute('data-camada')])) L.push({ tipo:'linha', cor:'#38BDF8', rot:'Hidrografia' });
+                    var rf = document.querySelector('#gp-painel input[data-key="ctx~Rodovias Federais"]');
+                    if (rf && rf.checked && naVista([rf.getAttribute('data-camada')])) L.push({ tipo:'linha', cor:'#DC2626', rot:'Rodovias Federais' });
                     return L;
                 }
                 // Preenche a caixinha de legenda na tela com o que está ativo
@@ -2736,6 +2741,18 @@ def create_webgis():
                 contexto['hidrografia'] = {'fg': fg, 'count': len(gdf)}
                 continue
 
+            if tipo == 'rodovias_federal':
+                fg = folium.FeatureGroup(name='Rodovias Federais', show=False, control=False)
+                col_via = 'NmNomeVia' if 'NmNomeVia' in gdf.columns else None
+                folium.GeoJson(
+                    data=gdf[['geometry'] + ([col_via] if col_via else [])],
+                    style_function=lambda x: {'color': COR_ROD_FEDERAL, 'weight': 2, 'opacity': 0.85},
+                    tooltip=(folium.GeoJsonTooltip(fields=[col_via], aliases=['Rodovia:'])
+                             if col_via else None),
+                ).add_to(fg)
+                contexto['rodovias_federal'] = {'fg': fg, 'count': len(gdf)}
+                continue
+
             if tipo == 'estado':
                 estado_geom = gdf.geometry.union_all()
                 fg = folium.FeatureGroup(name='Limite do Estado', show=True, control=False)
@@ -3062,11 +3079,13 @@ def create_webgis():
         except Exception as e:
             print(f"  Aviso: não consegui carregar a camada Localidades: {e}")
 
-    # Ordem de sobreposição: hidrografia -> estado -> polígonos -> linhas -> pontos
+    # Ordem de sobreposição: hidrografia -> estado -> rodovias federais -> polígonos -> linhas -> pontos
     if 'hidrografia' in contexto:
         contexto['hidrografia']['fg'].add_to(m)
     if 'estado' in contexto:
         contexto['estado']['fg'].add_to(m)
+    if 'rodovias_federal' in contexto:
+        contexto['rodovias_federal']['fg'].add_to(m)
     if 'localidades' in contexto:
         contexto['localidades']['fg'].add_to(m)
 
@@ -3178,6 +3197,10 @@ def create_webgis():
         contexto_info.append({'nome': 'Hidrografia', 'layer': contexto['hidrografia']['fg'],
                               'cor': COR_HIDRO, 'forma': 'linha', 'ativo': False,
                               'count': fmt(contexto['hidrografia']['count'])})
+    if 'rodovias_federal' in contexto:
+        contexto_info.append({'nome': 'Rodovias Federais', 'layer': contexto['rodovias_federal']['fg'],
+                              'cor': COR_ROD_FEDERAL, 'forma': 'linha', 'ativo': False,
+                              'count': fmt(contexto['rodovias_federal']['count'])})
     if 'localidades' in contexto:
         contexto_info.append({'nome': 'Localidades', 'layer': contexto['localidades']['fg'],
                               'cor': COR_LOCALIDADE, 'forma': 'ponto', 'ativo': False,
