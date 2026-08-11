@@ -161,6 +161,7 @@ COR_ESTADO = '#94A3B8'  # slate: legível no satélite E no painel branco
 COR_HIDRO = '#38BDF8'   # azul-céu
 COR_LOCALIDADE = '#EC4899'  # rosa: distinto do bueiro (roxo), situações, críticos e hidro
 COR_ROD_FEDERAL = '#DC2626'  # vermelho: rodovias federais (contexto)
+COR_AEROPORTO = '#7C3AED'  # violeta: aeroportos (contexto, ícone de avião)
 
 # Situação dos trechos (códigos oficiais do SRE) -> (descrição, cor).
 # As cores são agrupadas por FAMÍLIA para o mapa se ler à distância:
@@ -342,6 +343,8 @@ def classificar(nome):
         return 'hidrografia'
     if 'rodovia federal' in n or 'rodovias federal' in n:
         return 'rodovias_federal'
+    if 'aeroporto' in n:
+        return 'aeroporto'
     if 'estado' in n and 'tocantins' in n:
         return 'estado'
     if 'pontos criticos' in n or 'ponto critico' in n:
@@ -2220,6 +2223,8 @@ class PainelControle(MacroElement):
                     if (hid && hid.checked && naVista([hid.getAttribute('data-camada')])) L.push({ tipo:'linha', cor:'#38BDF8', rot:'Hidrografia' });
                     var rf = document.querySelector('#gp-painel input[data-key="ctx~Rodovias Federais"]');
                     if (rf && rf.checked && naVista([rf.getAttribute('data-camada')])) L.push({ tipo:'linha', cor:'#DC2626', rot:'Rodovias Federais' });
+                    var aer = document.querySelector('#gp-painel input[data-key="ctx~Aeroportos"]');
+                    if (aer && aer.checked && naVista([aer.getAttribute('data-camada')])) L.push({ tipo:'ponto', cor:'#7C3AED', rot:'Aeroportos' });
                     return L;
                 }
                 // Preenche a caixinha de legenda na tela com o que está ativo
@@ -2753,6 +2758,28 @@ def create_webgis():
                 contexto['rodovias_federal'] = {'fg': fg, 'count': len(gdf)}
                 continue
 
+            if tipo == 'aeroporto':
+                fg = folium.FeatureGroup(name='Aeroportos', show=False, control=False)
+                icone_aviao = folium.DivIcon(
+                    html=('<div style="background:{cor};width:22px;height:22px;border-radius:50%;'
+                          'display:flex;align-items:center;justify-content:center;'
+                          'border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)">'
+                          '<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff">'
+                          '<path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19'
+                          'l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div>'
+                          ).format(cor=COR_AEROPORTO),
+                    icon_size=(22, 22), icon_anchor=(11, 11), class_name='empty')
+                gdf_aero = gdf.copy()
+                gdf_aero['nome'] = gdf_aero['NM_IDENTIF'] if 'NM_IDENTIF' in gdf_aero.columns else None
+                gdf_aero['nome'] = gdf_aero['nome'].fillna('Aeroporto/Aeródromo')
+                folium.GeoJson(
+                    data=gdf_aero[['geometry', 'nome']],
+                    marker=folium.Marker(icon=icone_aviao),
+                    tooltip=folium.GeoJsonTooltip(fields=['nome'], aliases=['Aeroporto:']),
+                ).add_to(fg)
+                contexto['aeroporto'] = {'fg': fg, 'count': len(gdf)}
+                continue
+
             if tipo == 'estado':
                 estado_geom = gdf.geometry.union_all()
                 fg = folium.FeatureGroup(name='Limite do Estado', show=True, control=False)
@@ -3088,6 +3115,8 @@ def create_webgis():
         contexto['rodovias_federal']['fg'].add_to(m)
     if 'localidades' in contexto:
         contexto['localidades']['fg'].add_to(m)
+    if 'aeroporto' in contexto:
+        contexto['aeroporto']['fg'].add_to(m)
 
     def rid_key(rid):
         mm = re.match(r'R(\d+)$', rid)
@@ -3205,6 +3234,10 @@ def create_webgis():
         contexto_info.append({'nome': 'Localidades', 'layer': contexto['localidades']['fg'],
                               'cor': COR_LOCALIDADE, 'forma': 'ponto', 'ativo': False,
                               'count': fmt(contexto['localidades']['count'])})
+    if 'aeroporto' in contexto:
+        contexto_info.append({'nome': 'Aeroportos', 'layer': contexto['aeroporto']['fg'],
+                              'cor': COR_AEROPORTO, 'forma': 'ponto', 'ativo': False,
+                              'count': fmt(contexto['aeroporto']['count'])})
 
     # 5. Arquivos para download (KML + Shapefile zipado)
     print("\nGerando os arquivos para download...")
