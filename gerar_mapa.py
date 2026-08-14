@@ -621,6 +621,13 @@ def exportar_dados(base_dir, camadas_dir):
 
         g = pd.concat(partes, ignore_index=True)
 
+        if arq == 'trechos':
+            # 'Id' = número do trecho. Fica mais claro pra quem abre o
+            # download no QGIS/ArcGIS/Google Earth do que um genérico 'Id'.
+            col_id = next((c for c in g.columns if str(c).lower() == 'id'), None)
+            if col_id:
+                g = g.rename(columns={col_id: 'TRECHO'})
+
         try:
             # O driver KML do GDAL ANEXA a um arquivo existente em vez de
             # sobrescrever — o que faz a escrita falhar na 2ª feição. Por isso
@@ -2919,12 +2926,28 @@ def create_webgis():
                 for sit in ordenar_situacoes(gdf['SITUACAO'].unique()):
                     sub = gdf[gdf['SITUACAO'] == sit]
                     desc_sit, cor_sit = info_situacao(sit)
-                    cols_sub = [c for c in sub.columns if c.lower() != 'geometry']
+                    # Colunas de coordenada bruta (X/Y de início e fim do trecho) não
+                    # aparecem no popup — pouco útil pro usuário, só ruído.
+                    ocultas_popup = {'x_long', 'y_lat', 'x_fim_long', 'y_fim_lat'}
+                    cols_sub = [c for c in sub.columns
+                               if c.lower() != 'geometry' and c.lower() not in ocultas_popup]
+                    # 'Id' é o número do trecho — mostra "TRECHO" pro usuário no popup
+                    # (o nome da coluna na tabela de atributos continua 'Id'). A
+                    # coluna de texto 'TRECHO'/'TRECHOS' (descrição) já existente
+                    # vira "Descrição do trecho" no popup, pra não duplicar o rótulo.
+                    def _alias_trecho(c):
+                        cl = str(c).lower()
+                        if cl == 'id':
+                            return 'TRECHO'
+                        if cl in ('trecho', 'trechos'):
+                            return 'Descrição do trecho'
+                        return c
+                    aliases_sub = [_alias_trecho(c) for c in cols_sub]
                     fg_sit = folium.FeatureGroup(name=f'{rid}_trechos_{sit}',
                                                  show=True, control=False)
                     folium.GeoJson(
                         data=sub, name=f'{nome}_{sit}',
-                        popup=folium.GeoJsonPopup(fields=cols_sub, aliases=cols_sub, localize=True),
+                        popup=folium.GeoJsonPopup(fields=cols_sub, aliases=aliases_sub, localize=True),
                         style_function=(lambda x, c=cor_sit: {'color': c, 'weight': 3, 'opacity': 0.9}),
                     ).add_to(fg_sit)
 
