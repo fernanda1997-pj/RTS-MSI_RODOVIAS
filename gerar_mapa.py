@@ -163,6 +163,41 @@ COR_LOCALIDADE = '#EC4899'  # rosa: distinto do bueiro (roxo), situações, crí
 COR_ROD_FEDERAL = '#DC2626'  # vermelho: rodovias federais (contexto)
 COR_AEROPORTO = '#7C3AED'  # violeta: aeroportos (contexto, ícone de avião)
 
+# Rótulos do popup de Trechos: o nome das colunas varia por região (schema
+# divergente entre R1/R2/R3/R11/R12/R13 — sufixos truncados pelo limite de
+# 10 caracteres do DBF, ex. 'CIDADE' x 'CIDADE_SED', 'EXTENSÃO' x 'EXT_REAL'
+# x 'EXTENÇÃO'). Este dict normaliza tudo pra um único rótulo, em CAIXA
+# ALTA, chaveado pelo nome da coluna em minúsculo.
+ALIAS_POPUP_TRECHO = {
+    'id': 'TRECHO',                     # número do trecho
+    'trecho': 'DESCRIÇÃO DO TRECHO',    # texto (a coluna já se chamava TRECHO/TRECHOS)
+    'trechos': 'DESCRIÇÃO DO TRECHO',
+    'região': 'REGIÃO',
+    'situação': 'SITUAÇÃO',
+    'sre': 'SRE',
+    'cidade': 'CIDADE',
+    'cidade_sed': 'CIDADE',
+    'rodovia': 'RODOVIA',
+    'segmento': 'SEGMENTO',
+    'ext_real': 'EXTENSÃO (KM)',
+    'extensão': 'EXTENSÃO (KM)',
+    'extensã_1': 'EXTENSÃO (KM)',
+    'extenção': 'EXTENSÃO (KM)',
+}
+# Escondidas do popup: id interno do GIS, a duplicata 'SITUACAO' (sem
+# acento, criada pelo próprio script pra filtrar por situação — a
+# 'SITUAÇÃO' com acento já aparece acima) e os pares de coordenada bruta
+# (não é informação legível pro usuário; existem em vários nomes por
+# região por causa do mesmo limite de 10 caracteres do DBF).
+OCULTAS_POPUP_TRECHO = {
+    'objectid', 'situacao',
+    'x_long', 'y_lat', 'x_fim_long', 'y_fim_lat',
+    'x_inicio', 'y_inicio', 'x_final', 'y_final', 'x_fim', 'y_fim',
+    'start_x', 'start_y', 'end_x', 'end_y',
+    'coord__ini', 'coord__fim', 'coord_inic', 'coord_fi_1',
+    'coord_ini', 'coord_fina',
+}
+
 # Situação dos trechos (códigos oficiais do SRE) -> (descrição, cor).
 # As cores são agrupadas por FAMÍLIA para o mapa se ler à distância:
 #   verdes  = duplicadas | azuis = pavimentadas simples
@@ -2926,23 +2961,13 @@ def create_webgis():
                 for sit in ordenar_situacoes(gdf['SITUACAO'].unique()):
                     sub = gdf[gdf['SITUACAO'] == sit]
                     desc_sit, cor_sit = info_situacao(sit)
-                    # Colunas de coordenada bruta (X/Y de início e fim do trecho) não
-                    # aparecem no popup — pouco útil pro usuário, só ruído.
-                    ocultas_popup = {'x_long', 'y_lat', 'x_fim_long', 'y_fim_lat'}
+                    # Coordenadas brutas, id interno do GIS e a duplicata 'SITUACAO'
+                    # não aparecem no popup (ver OCULTAS_POPUP_TRECHO); os demais
+                    # rótulos saem uniformes e em caixa alta (ver ALIAS_POPUP_TRECHO).
                     cols_sub = [c for c in sub.columns
-                               if c.lower() != 'geometry' and c.lower() not in ocultas_popup]
-                    # 'Id' é o número do trecho — mostra "TRECHO" pro usuário no popup
-                    # (o nome da coluna na tabela de atributos continua 'Id'). A
-                    # coluna de texto 'TRECHO'/'TRECHOS' (descrição) já existente
-                    # vira "Descrição do trecho" no popup, pra não duplicar o rótulo.
-                    def _alias_trecho(c):
-                        cl = str(c).lower()
-                        if cl == 'id':
-                            return 'TRECHO'
-                        if cl in ('trecho', 'trechos'):
-                            return 'Descrição do trecho'
-                        return c
-                    aliases_sub = [_alias_trecho(c) for c in cols_sub]
+                               if c.lower() != 'geometry' and c.lower() not in OCULTAS_POPUP_TRECHO]
+                    aliases_sub = [ALIAS_POPUP_TRECHO.get(str(c).lower(), str(c).upper())
+                                   for c in cols_sub]
                     fg_sit = folium.FeatureGroup(name=f'{rid}_trechos_{sit}',
                                                  show=True, control=False)
                     folium.GeoJson(
