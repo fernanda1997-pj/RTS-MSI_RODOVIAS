@@ -183,6 +183,7 @@ ALIAS_POPUP_TRECHO = {
     'extensão': 'EXTENSÃO (KM)',
     'extensã_1': 'EXTENSÃO (KM)',
     'extenção': 'EXTENSÃO (KM)',
+    'ext_km': 'EXTENSÃO (KM)',  # normalizar_extensao() unifica tudo nesse nome
 }
 # Escondidas do popup: id interno do GIS, a duplicata 'SITUACAO' (sem
 # acento, criada pelo próprio script pra filtrar por situação — a
@@ -2741,7 +2742,8 @@ def create_webgis():
     regioes = {}
     contexto = {}
     bounds = []
-    total_situacao = {}
+    total_situacao = {}      # nº de trechos por situação
+    total_situacao_km = {}   # soma de EXT_KM por situação (pct do painel = por km, não por trecho)
     estado_geom = None  # polígono do TO, capturado abaixo -> filtra Localidades
 
     for shp_file in sorted(camadas_dir.glob('*.shp')):
@@ -2951,6 +2953,10 @@ def create_webgis():
                 gdf['SITUACAO'] = (gdf[csit].astype(str).str.strip().str.upper()
                                    if csit else '')
                 gdf['SITUACAO'] = gdf['SITUACAO'].replace({'NONE': '—', '': '—'})
+                # Mesma normalização de extensão usada no download (EXT_KM, sempre
+                # em km) — o painel usa isso pra calcular o % de cada situação por
+                # QUILÔMETRO de malha (como a planilha), não por número de trechos.
+                gdf = normalizar_extensao(gdf, nome)
                 col_sre = next((c for c in gdf.columns if str(c).upper() == 'SRE'), None)
                 col_rod = next((c for c in gdf.columns if str(c).upper() == 'RODOVIA'), None)
                 col_cid = next((c for c in gdf.columns if 'CIDADE' in str(c).upper()), None)
@@ -2999,6 +3005,8 @@ def create_webgis():
                     situacoes.append({'codigo': sit, 'desc': desc_sit, 'fg': fg_sit,
                                       'count': len(sub), 'cor': cor_sit, 'sres': lista_sre})
                     total_situacao[sit] = total_situacao.get(sit, 0) + len(sub)
+                    km_sit = sub['EXT_KM'].sum() if 'EXT_KM' in sub.columns else 0
+                    total_situacao_km[sit] = total_situacao_km.get(sit, 0) + km_sit
                 regioes.setdefault(rid, {})['trechos'] = {'count': len(gdf),
                                                           'situacoes': situacoes}
                 print(f"  '{nome}' -> {rid} / trechos ({len(gdf)} feições em "
@@ -3311,14 +3319,19 @@ def create_webgis():
         print(f"2ª logo carregada: {msi.name}")
 
     # ---------------- Filtros globais (valem para TODAS as regiões) ----------
-    # Situação dos trechos — com % (proporção do total de trechos)
+    # Situação dos trechos — 'count' é o nº de trechos, mas o % é por
+    # QUILÔMETRO de malha (como a planilha "3. POR SITUAÇÃO DO SEGMENTO"),
+    # não por número de trechos — os dois davam número diferente porque um
+    # trecho longo e um curto contam igual num % por contagem.
     total_sit = sum(total_situacao.values()) or 1
+    total_km_sit = sum(total_situacao_km.values()) or 1
     filtros_situacao = []
     for cod in ordenar_situacoes(total_situacao.keys()):
         desc, cor = info_situacao(cod)
         n = total_situacao[cod]
+        km = total_situacao_km.get(cod, 0)
         filtros_situacao.append({'codigo': cod, 'desc': desc, 'cor': cor,
-                                 'count': fmt(n), 'pct': round(n / total_sit * 100)})
+                                 'count': fmt(n), 'pct': round(km / total_km_sit * 100)})
     prop_situacao = {'total': fmt(total_sit)}
 
     # Status dos pontos críticos — vira ROSCA (donut). Além dos chips, calculo
