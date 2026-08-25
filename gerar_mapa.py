@@ -98,9 +98,9 @@ def emitir_relatorio_qualidade(base_dir):
 # mês e o link da foto de cada mês (hospedadas no Drive, permanecem privadas).
 PLANILHA_PC = Path(__file__).parent / 'pontos criticos' / 'Controle Pontos Críticos .xlsx'
 
-# Ordem cronológica do acompanhamento (o ciclo vai de setembro a julho)
+# Ordem cronológica do acompanhamento (o ciclo vai de setembro a agosto)
 MESES = ['Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Janeiro',
-         'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho']
+         'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto']
 
 # Status do ponto -> (rótulo exibido, cor)
 STATUS_PC = {
