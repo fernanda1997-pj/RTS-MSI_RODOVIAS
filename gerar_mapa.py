@@ -2791,6 +2791,17 @@ def create_webgis():
                 continue
 
             if tipo == 'rodovias_federal':
+                # Geometria de origem (DNIT) é bem mais densa do que a tela
+                # precisa (~700 vértices por trecho) — sem simplificar, essa
+                # camada sozinha (desligada por padrão) pesava ~5 MB no HTML
+                # e deixava o carregamento arrastado, sobretudo em campo com
+                # conexão fraca. Mesma tolerância da Hidrografia.
+                antes_v = int(gdf.geometry.apply(lambda g: len(g.coords) if g.geom_type == 'LineString'
+                                                 else sum(len(p.coords) for p in g.geoms)).sum())
+                gdf['geometry'] = gdf.geometry.simplify(HIDRO_SIMPLIFY, preserve_topology=False)
+                depois_v = int(gdf.geometry.apply(lambda g: len(g.coords) if g.geom_type == 'LineString'
+                                                  else sum(len(p.coords) for p in g.geoms)).sum())
+                print(f"  Rodovias Federais simplificada: {antes_v} -> {depois_v} vértices")
                 fg = folium.FeatureGroup(name='Rodovias Federais', show=False, control=False)
                 col_via = 'NmNomeVia' if 'NmNomeVia' in gdf.columns else None
                 folium.GeoJson(
