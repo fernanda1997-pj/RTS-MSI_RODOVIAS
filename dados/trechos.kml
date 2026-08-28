@@ -283,7 +283,7 @@
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">216</SimpleData>
 		<SimpleData name="REGIÃO">11</SimpleData>
-		<SimpleData name="SITUAÇÃO">EOP</SimpleData>
+		<SimpleData name="SITUAÇÃO">PPS</SimpleData>
 		<SimpleData name="SRE">365ETO0250</SimpleData>
 		<SimpleData name="RODOVIA">TO-365</SimpleData>
 		<SimpleData name="SEGMENTO">FIM PU POV. TREVO DA PRAIA - ENTR. BR-153</SimpleData>
