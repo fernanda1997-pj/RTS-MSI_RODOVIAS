@@ -916,6 +916,12 @@ class PainelControle(MacroElement):
             #gp-painel .gp-sub-item { display:flex; align-items:center; gap:9px; padding:5px 6px; margin:1px -6px; border-radius:7px; }
             #gp-painel .gp-sub-item:hover { background:rgba(15,23,42,0.04); }
             #gp-painel .gp-sub-lbl { flex:1; font-size:12.5px; color:#475569; }
+            /* Camada sob demanda: buscando o .geojson (1ª vez que liga o olho) */
+            #gp-painel .gp-sub-item.gp-carregando { pointer-events:none; }
+            #gp-painel .gp-sub-item.gp-carregando .gp-olho svg
+                { animation: gp-pulso 0.9s ease-in-out infinite; }
+            @keyframes gp-pulso { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+            #gp-painel .gp-sub-item.gp-erro .gp-sub-lbl { color:#DC2626; }
             #gp-painel .gp-tre-head { display:flex; align-items:center; gap:9px; padding:5px 6px; margin:1px -6px; border-radius:7px; cursor:pointer; transition:background .15s; }
             #gp-painel .gp-tre-head:hover { background:rgba(15,23,42,0.04); }
             #gp-painel .gp-chev2 { flex:0 0 auto; width:9px; color:#1E3A72; transition:transform .2s; }
@@ -1702,12 +1708,54 @@ class PainelControle(MacroElement):
                     });
                 }
 
+                // Camadas grandes e desligadas por padrão: o grupo nasce vazio
+                // no HTML e só busca o .geojson (fetch) na 1ª vez que o usuário
+                // liga o olho — evita todo mundo baixar esse peso à toa,
+                // sobretudo em campo com conexão fraca. Uma vez carregada, fica
+                // em cache no próprio grupo (desligar/religar não busca de novo).
+                var sobDemanda = {
+                    {% for c in this.contexto %}{% if c.nome == 'Hidrografia' %}
+                    "{{ c.layer.get_name() }}": { url: 'dados/hidrografia.geojson',
+                        style: { color: '{{ c.cor }}', weight: 1.2, opacity: 0.75 }, estado: 'ocioso' },
+                    {% endif %}{% endfor %}
+                };
+                function carregarSobDemanda(nomeCamada) {
+                    var info = sobDemanda[nomeCamada];
+                    if (!info || info.estado === 'carregado' || info.estado === 'carregando') return;
+                    info.estado = 'carregando';
+                    var linha = document.querySelector('#gp-painel [data-camada="'+nomeCamada+'"]');
+                    if (linha) linha = linha.closest('.gp-sub-item');
+                    if (linha) { linha.classList.add('gp-carregando'); linha.classList.remove('gp-erro'); }
+                    fetch(info.url).then(function(r){
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    }).then(function(geojson){
+                        L.geoJson(geojson, { style: function(){ return info.style; } }).addTo(camadas[nomeCamada]);
+                        info.estado = 'carregado';
+                        if (linha) linha.classList.remove('gp-carregando');
+                        if (typeof renderLegenda === 'function') renderLegenda();
+                    }).catch(function(err){
+                        info.estado = 'ocioso';   // deixa tentar de novo da próxima vez
+                        console.error('Falha ao carregar camada sob demanda:', nomeCamada, err);
+                        if (linha) {
+                            linha.classList.remove('gp-carregando');
+                            linha.classList.add('gp-erro');
+                            linha.title = 'Não consegui baixar essa camada agora (sem internet?). Toque no olho pra tentar de novo.';
+                            setTimeout(function(){ linha.classList.remove('gp-erro'); }, 4000);
+                        }
+                        var chk = document.querySelector('#gp-painel input[data-camada="'+nomeCamada+'"]');
+                        if (chk) { chk.checked = false; aplicar(chk); }
+                    });
+                }
+
                 function aplicar(input) {
-                    var lyr = camadas[input.getAttribute('data-camada')];
+                    var nomeCamada = input.getAttribute('data-camada');
+                    var lyr = camadas[nomeCamada];
                     if (!lyr) return;
                     if (input.checked) {
                         if (!map.hasLayer(lyr)) map.addLayer(lyr);
                         regioesAoFundo();
+                        if (sobDemanda[nomeCamada]) carregarSobDemanda(nomeCamada);
                     } else {
                         if (map.hasLayer(lyr)) map.removeLayer(lyr);
                     }
@@ -2783,10 +2831,17 @@ def create_webgis():
                 gdf['geometry'] = gdf.geometry.simplify(HIDRO_SIMPLIFY, preserve_topology=False)
                 print(f"  Hidrografia filtrada (ordem <= {HIDRO_ORDEM_MAX}): "
                       f"{antes} -> {len(gdf)} feições (simplificada)")
+                # Carregada SOB DEMANDA: essa camada sozinha pesava ~5,5 MB e vem
+                # DESLIGADA por padrão — embuti-la no HTML deixava todo mundo
+                # baixando esse peso mesmo quem nunca liga Hidrografia (crítico
+                # pra quem acessa em campo com conexão fraca). Em vez de
+                # folium.GeoJson(...).add_to(fg), o grupo fica VAZIO no HTML;
+                # os dados vão pra um .geojson à parte, buscado pelo JS
+                # (carregarSobDemanda) só quando o usuário liga o olho.
+                dados_dir = base_dir / 'dados'
+                dados_dir.mkdir(exist_ok=True)
+                gdf[['geometry']].to_file(dados_dir / 'hidrografia.geojson', driver='GeoJSON')
                 fg = folium.FeatureGroup(name='Hidrografia', show=False, control=False)
-                folium.GeoJson(data=gdf[['geometry']],
-                               style_function=lambda x: {'color': COR_HIDRO, 'weight': 1.2,
-                                                         'opacity': 0.75}).add_to(fg)
                 contexto['hidrografia'] = {'fg': fg, 'count': len(gdf)}
                 continue
 
