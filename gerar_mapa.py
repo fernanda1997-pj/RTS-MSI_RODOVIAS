@@ -2794,6 +2794,34 @@ def create_webgis():
     total_situacao_km = {}   # soma de EXT_KM por situação (pct do painel = por km, não por trecho)
     estado_geom = None  # polígono do TO, capturado abaixo -> filtra Localidades
 
+    # Contorno das 6 regiões de trabalho (união dos polígonos R*_REGIÃO),
+    # pré-carregado ANTES do loop principal — as camadas de contexto
+    # (Hidrografia, Rodovias Federais, Aeroportos, Localidades) usam isso
+    # pra recortar só a área onde a equipe atua, em vez do Tocantins
+    # inteiro. Feito num loop à parte pra não depender da ordem alfabética
+    # em que os arquivos aparecem no loop principal (Aeroportos, por
+    # exemplo, viria antes de qualquer R*_REGIÃO nessa ordem).
+    regioes_geom = None
+    _partes_regiao = []
+    for _shp in sorted(camadas_dir.glob('*.shp')):
+        if classificar(_shp.stem) != 'regiao':
+            continue
+        try:
+            _g = gpd.read_file(_shp)
+            if _g.crs and _g.crs.to_string() != 'EPSG:4326':
+                _g = _g.to_crs(epsg=4326)
+            elif not _g.crs:
+                _g.set_crs(epsg=4326, inplace=True)
+            _partes_regiao.append(_g.geometry.union_all())
+        except Exception as e:
+            print(f"  Aviso: não consegui ler {_shp.name} para o contorno das regiões: {e}")
+    if _partes_regiao:
+        # Buffer de ~2 km: evita cortar rente à borda um rio ou uma
+        # localidade que só encosta no limite da região.
+        regioes_geom = gpd.GeoSeries(_partes_regiao, crs='EPSG:4326').union_all().buffer(0.02)
+        print(f"  Contorno das regiões de trabalho: {len(_partes_regiao)} região(ões) unidas "
+              f"(+ margem de 2 km) — usado pra recortar as camadas de contexto.")
+
     for shp_file in sorted(camadas_dir.glob('*.shp')):
         nome = shp_file.stem
         tipo = classificar(nome)
@@ -2828,6 +2856,10 @@ def create_webgis():
                 antes = len(gdf)
                 if 'nuordemcda' in gdf.columns:
                     gdf = gdf[gdf['nuordemcda'] <= HIDRO_ORDEM_MAX].copy()
+                if regioes_geom is not None:
+                    antes_r = len(gdf)
+                    gdf = gdf[gdf.intersects(regioes_geom)].copy()
+                    print(f"  Hidrografia fora das regiões de trabalho removida: {antes_r} -> {len(gdf)}")
                 gdf['geometry'] = gdf.geometry.simplify(HIDRO_SIMPLIFY, preserve_topology=False)
                 print(f"  Hidrografia filtrada (ordem <= {HIDRO_ORDEM_MAX}): "
                       f"{antes} -> {len(gdf)} feições (simplificada)")
@@ -2846,6 +2878,11 @@ def create_webgis():
                 continue
 
             if tipo == 'rodovias_federal':
+                if regioes_geom is not None:
+                    antes_r = len(gdf)
+                    gdf = gdf[gdf.intersects(regioes_geom)].copy()
+                    print(f"  Rodovias Federais fora das regiões de trabalho removida: "
+                          f"{antes_r} -> {len(gdf)}")
                 # Geometria de origem (DNIT) é bem mais densa do que a tela
                 # precisa (~700 vértices por trecho) — sem simplificar, essa
                 # camada sozinha (desligada por padrão) pesava ~5 MB no HTML
@@ -2869,6 +2906,10 @@ def create_webgis():
                 continue
 
             if tipo == 'aeroporto':
+                if regioes_geom is not None:
+                    antes_r = len(gdf)
+                    gdf = gdf[gdf.intersects(regioes_geom)].copy()
+                    print(f"  Aeroportos fora das regiões de trabalho removidos: {antes_r} -> {len(gdf)}")
                 fg = folium.FeatureGroup(name='Aeroportos', show=False, control=False)
                 icone_aviao = folium.DivIcon(
                     html=('<div style="background:{cor};width:22px;height:22px;border-radius:50%;'
@@ -3195,10 +3236,13 @@ def create_webgis():
                 gdf_loc = gdf_loc.to_crs(4326)
             gdf_loc = limpar_atributos(gdf_loc)
             gdf_loc = gdf_loc[gdf_loc.geometry.apply(geom_valida)].copy()
-            if estado_geom is not None:
+            # Prefere o contorno das regiões de trabalho (mais justo); cai
+            # pro limite do Estado só se as regiões não puderam ser lidas.
+            _corte = regioes_geom if regioes_geom is not None else estado_geom
+            if _corte is not None:
                 antes = len(gdf_loc)
-                gdf_loc = gdf_loc[gdf_loc.intersects(estado_geom)].copy()
-                print(f"  Localidades fora do TO removidas: {antes} -> {len(gdf_loc)}")
+                gdf_loc = gdf_loc[gdf_loc.intersects(_corte)].copy()
+                print(f"  Localidades fora das regiões de trabalho removidas: {antes} -> {len(gdf_loc)}")
             col_nome = next((c for c in ['NM_IDENTIF', 'NM_LOC_ASS', 'NOME', 'nome']
                              if c in gdf_loc.columns), None)
             keep = ['geometry'] + ([col_nome] if col_nome else [])
