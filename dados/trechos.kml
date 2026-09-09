@@ -6397,20 +6397,6 @@
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">25</SimpleData>
 		<SimpleData name="REGIÃO">1</SimpleData>
-		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
-		<SimpleData name="SRE">210ETO0010D</SimpleData>
-		<SimpleData name="RODOVIA">TO-210</SimpleData>
-		<SimpleData name="SEGMENTO">INICIO DUPLICAÇÃO(PU TOCANTINÓPOLIS) - ENTR. TO-126(A)(PU TOCANTINOPOLIS)</SimpleData>
-		<SimpleData name="EXT_KM">0.3496</SimpleData>
-		<SimpleData name="REGIAO">R1</SimpleData>
-	</SchemaData></ExtendedData>
-      <LineString><coordinates>-47.4273039999999,-6.32516199999998 -47.42421418,-6.32579733599994</coordinates></LineString>
-  </Placemark>
-  <Placemark id="trechos.458">
-	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
-	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">25</SimpleData>
-		<SimpleData name="REGIÃO">1</SimpleData>
 		<SimpleData name="SITUAÇÃO">PSU</SimpleData>
 		<SimpleData name="SRE">210ETO0002</SimpleData>
 		<SimpleData name="RODOVIA">TO-210</SimpleData>
@@ -6420,7 +6406,7 @@
 	</SchemaData></ExtendedData>
       <LineString><coordinates>-47.42421418,-6.32579733599994 -47.4236897819999,-6.32610348799994 -47.4224741909999,-6.32682657299995 -47.4211297329999,-6.32759330199997 -47.420826822,-6.32782281999994 -47.420401759,-6.32802369699994 -47.420228422,-6.32805664999995 -47.4187662269999,-6.32817824999995 -47.4188662949999,-6.33119092999993 -47.41668479,-6.33082803599996 -47.4164483329999,-6.33271055599994 -47.415936111,-6.33224611099996</coordinates></LineString>
   </Placemark>
-  <Placemark id="trechos.459">
+  <Placemark id="trechos.458">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">19</SimpleData>
@@ -6434,7 +6420,7 @@
 	</SchemaData></ExtendedData>
       <LineString><coordinates>-48.543450731,-5.36916000899993 -48.543251111,-5.36911333299997 -48.543015082,-5.36906633099994 -48.542872179,-5.36908627299994 -48.5424916919999,-5.36924138099994 -48.5418449639999,-5.36952226499994 -48.541728537,-5.36917413999993 -48.5415697409999,-5.36850613099995 -48.541433814,-5.36767075499995 -48.541226313,-5.36682384899996 -48.5410771919999,-5.36617967199993 -48.5401405169999,-5.36495713599993 -48.5397369469999,-5.36460709999994</coordinates></LineString>
   </Placemark>
-  <Placemark id="trechos.460">
+  <Placemark id="trechos.459">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">15</SimpleData>
@@ -6448,7 +6434,7 @@
 	</SchemaData></ExtendedData>
       <LineString><coordinates>-47.6396787739999,-5.60583689399994 -47.639640587,-5.60574383099993 -47.6396930719999,-5.60532477899994 -47.6398745,-5.60425413899998 -47.640037691,-5.60324432599998 -47.6408117899999,-5.60300862799994 -47.6411093519999,-5.60289922599998 -47.6419506029999,-5.60280728099997 -47.643049306,-5.60273831699993 -47.643723156,-5.60284475299994</coordinates></LineString>
   </Placemark>
-  <Placemark id="trechos.461">
+  <Placemark id="trechos.460">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">15</SimpleData>
@@ -6462,7 +6448,7 @@
 	</SchemaData></ExtendedData>
       <LineString><coordinates>-47.6385959999999,-5.60832799999997 -47.6391546679999,-5.60768908599994 -47.639428842,-5.60709487099996 -47.639560597,-5.60667345499996 -47.6396253999999,-5.60622364699998 -47.6396787739999,-5.60583689399994</coordinates></LineString>
   </Placemark>
-  <Placemark id="trechos.462">
+  <Placemark id="trechos.461">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">16</SimpleData>
@@ -6476,7 +6462,7 @@
 	</SchemaData></ExtendedData>
       <LineString><coordinates>-47.643723156,-5.60284475299994 -47.643773,-5.60284199999995 -47.6438249999999,-5.60283899999996 -47.643949,-5.60283399999997 -47.644084,-5.60283099999998 -47.6442259999999,-5.60282499999994 -47.64437,-5.60281699999996 -47.644512,-5.60280599999993 -47.6446529999999,-5.60279299999996 -47.6447949999999,-5.60277699999995 -47.644938,-5.60275799999994 -47.6450839999999,-5.60273599999994 -47.645229,-5.60270799999995 -47.6453739999999,-5.60267599999997</coordinates></LineString>
   </Placemark>
-  <Placemark id="trechos.463">
+  <Placemark id="trechos.462">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
 		<SimpleData name="TRECHO">25</SimpleData>
@@ -6485,10 +6471,24 @@
 		<SimpleData name="SRE">210ETO0010E</SimpleData>
 		<SimpleData name="RODOVIA">TO-210</SimpleData>
 		<SimpleData name="SEGMENTO">INICIO DUPLICAÇÃO(PU TOCANTINÓPOLIS) - ENTR. TO-126(A)(PU TOCANTINOPOLIS)</SimpleData>
-		<SimpleData name="EXT_KM">0.3496</SimpleData>
+		<SimpleData name="EXT_KM">0.3523</SimpleData>
 		<SimpleData name="REGIAO">R1</SimpleData>
 	</SchemaData></ExtendedData>
-      <LineString><coordinates>-47.4273039999999,-6.32516199999998 -47.42421418,-6.32579733599994</coordinates></LineString>
+      <LineString><coordinates>-47.4273039999999,-6.32516199999996 -47.4272644058002,-6.32520663679028 -47.4270170003864,-6.32524793434611 -47.4265579533466,-6.32533794196948 -47.4260201917411,-6.32541665704287 -47.425521775243,-6.32550280913039 -47.4250879700698,-6.32556790548118 -47.4246576723155,-6.32564377564032 -47.4243707496499,-6.32570271627838 -47.42421418,-6.32579733599993</coordinates></LineString>
+  </Placemark>
+  <Placemark id="trechos.463">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#trechos">
+		<SimpleData name="TRECHO">25</SimpleData>
+		<SimpleData name="REGIÃO">1</SimpleData>
+		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
+		<SimpleData name="SRE">210ETO0010D</SimpleData>
+		<SimpleData name="RODOVIA">TO-210</SimpleData>
+		<SimpleData name="SEGMENTO">INICIO DUPLICAÇÃO(PU TOCANTINÓPOLIS) - ENTR. TO-126(A)(PU TOCANTINOPOLIS)</SimpleData>
+		<SimpleData name="EXT_KM">0.3448</SimpleData>
+		<SimpleData name="REGIAO">R1</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>-47.42734447,-6.32531839099994 -47.4269731131713,-6.32538021684433 -47.4266970326755,-6.32542490017113 -47.4263492769309,-6.32547625659911 -47.4260589206069,-6.32551367451393 -47.4255534399927,-6.32558544449836 -47.4252057091008,-6.32563321684329 -47.4247754852132,-6.32569833751304 -47.4245029616384,-6.32574662732327 -47.4242665339914,-6.32576569692891</coordinates></LineString>
   </Placemark>
   <Placemark id="trechos.464">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
