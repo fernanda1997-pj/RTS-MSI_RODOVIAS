@@ -757,7 +757,7 @@
   <Placemark id="trechos.54">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">222</SimpleData>
+		<SimpleData name="TRECHO">220</SimpleData>
 		<SimpleData name="REGIÃO">11</SimpleData>
 		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
 		<SimpleData name="SRE">460ETO0015E</SimpleData>
@@ -841,7 +841,7 @@
   <Placemark id="trechos.60">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">222</SimpleData>
+		<SimpleData name="TRECHO">220</SimpleData>
 		<SimpleData name="REGIÃO">11</SimpleData>
 		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
 		<SimpleData name="SRE">460ETO0015D</SimpleData>
@@ -4855,7 +4855,7 @@
   <Placemark id="trechos.347">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">1</SimpleData>
+		<SimpleData name="TRECHO">23</SimpleData>
 		<SimpleData name="REGIÃO">1</SimpleData>
 		<SimpleData name="SITUAÇÃO">PPS</SimpleData>
 		<SimpleData name="SRE">210ETO0242</SimpleData>
@@ -5583,7 +5583,7 @@
   <Placemark id="trechos.399">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">17</SimpleData>
+		<SimpleData name="TRECHO">18</SimpleData>
 		<SimpleData name="REGIÃO">1</SimpleData>
 		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
 		<SimpleData name="SRE">201ETO0132D</SimpleData>
@@ -5597,7 +5597,7 @@
   <Placemark id="trechos.400">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">17</SimpleData>
+		<SimpleData name="TRECHO">18</SimpleData>
 		<SimpleData name="REGIÃO">1</SimpleData>
 		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
 		<SimpleData name="SRE">201ETO0132E</SimpleData>
@@ -7137,7 +7137,7 @@
   <Placemark id="trechos.510">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">53</SimpleData>
+		<SimpleData name="TRECHO">48</SimpleData>
 		<SimpleData name="REGIÃO">2</SimpleData>
 		<SimpleData name="SITUAÇÃO">PPS</SimpleData>
 		<SimpleData name="SRE">165ETO0110</SimpleData>
@@ -8033,7 +8033,7 @@
   <Placemark id="trechos.574">
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
 	<ExtendedData><SchemaData schemaUrl="#trechos">
-		<SimpleData name="TRECHO">44</SimpleData>
+		<SimpleData name="TRECHO">47</SimpleData>
 		<SimpleData name="REGIÃO">2</SimpleData>
 		<SimpleData name="SITUAÇÃO">PDU</SimpleData>
 		<SimpleData name="SRE">164ETO0156D</SimpleData>
