@@ -85,12 +85,23 @@ def emitir_relatorio_qualidade(base_dir):
     L.append('=' * 64)
     texto = '\n'.join(L)
 
-    print('\n' + texto)
     try:
         (base_dir / 'relatorio_qualidade.txt').write_text(texto, encoding='utf-8')
-        print(f"Relatório salvo em: {base_dir / 'relatorio_qualidade.txt'}")
+        salvo_em = base_dir / 'relatorio_qualidade.txt'
     except Exception as e:
+        salvo_em = None
         print(f"  Aviso: não consegui salvar o relatório de qualidade: {e}")
+
+    # O console do Windows (cp1252/cp850) não codifica alguns caracteres do
+    # relatório (ex. '─' dos separadores); imprime tolerando isso em vez de
+    # travar o script depois que o mapa/relatório já foram salvos.
+    try:
+        print('\n' + texto)
+    except UnicodeEncodeError:
+        enc = sys.stdout.encoding or 'ascii'
+        print('\n' + texto.encode(enc, errors='replace').decode(enc))
+    if salvo_em:
+        print(f"Relatório salvo em: {salvo_em}")
     return n_alta
 
 # --------------------------------------------------- pontos críticos
@@ -163,40 +174,44 @@ COR_LOCALIDADE = '#EC4899'  # rosa: distinto do bueiro (roxo), situações, crí
 COR_ROD_FEDERAL = '#DC2626'  # vermelho: rodovias federais (contexto)
 COR_AEROPORTO = '#7C3AED'  # violeta: aeroportos (contexto, ícone de avião)
 
-# Rótulos do popup de Trechos: o nome das colunas varia por região (schema
-# divergente entre R1/R2/R3/R11/R12/R13 — sufixos truncados pelo limite de
-# 10 caracteres do DBF, ex. 'CIDADE' x 'CIDADE_SED', 'EXTENSÃO' x 'EXT_REAL'
-# x 'EXTENÇÃO'). Este dict normaliza tudo pra um único rótulo, em CAIXA
-# ALTA, chaveado pelo nome da coluna em minúsculo.
+# Rótulos do popup de Trechos: os shapefiles R1/R2/R3/R11/R12/R13 foram
+# padronizados em 2026-09-21 (mesmo nome de coluna em todas as regiões:
+# TRECHO, CIDADE_SED, EXTENSAO, SITUACAO, REGIAO, X_INICIO/Y_INICIO,
+# X_FIM/Y_FIM, COORD_INI/COORD_FIM). Este dict normaliza tudo pra um único
+# rótulo, em CAIXA ALTA, chaveado pelo nome da coluna em minúsculo — mantém
+# também os nomes antigos (schema pré-padronização) como fallback, caso
+# algum shapefile ainda não tenha sido regenerado/propagado.
 ALIAS_POPUP_TRECHO = {
     'id': 'TRECHO',                     # número do trecho
     'trecho': 'DESCRIÇÃO DO TRECHO',    # texto (a coluna já se chamava TRECHO/TRECHOS)
     'trechos': 'DESCRIÇÃO DO TRECHO',
+    'regiao': 'REGIÃO',
     'região': 'REGIÃO',
+    'situacao': 'SITUAÇÃO',
     'situação': 'SITUAÇÃO',
     'sre': 'SRE',
     'cidade': 'CIDADE',
     'cidade_sed': 'CIDADE',
     'rodovia': 'RODOVIA',
     'segmento': 'SEGMENTO',
+    'extensao': 'EXTENSÃO (KM)',
     'ext_real': 'EXTENSÃO (KM)',
     'extensão': 'EXTENSÃO (KM)',
     'extensã_1': 'EXTENSÃO (KM)',
     'extenção': 'EXTENSÃO (KM)',
     'ext_km': 'EXTENSÃO (KM)',  # normalizar_extensao() unifica tudo nesse nome
 }
-# Escondidas do popup: id interno do GIS, a duplicata 'SITUACAO' (sem
-# acento, criada pelo próprio script pra filtrar por situação — a
-# 'SITUAÇÃO' com acento já aparece acima) e os pares de coordenada bruta
-# (não é informação legível pro usuário; existem em vários nomes por
-# região por causa do mesmo limite de 10 caracteres do DBF).
+# Escondidas do popup: id interno do GIS e os pares de coordenada bruta
+# (não é informação legível pro usuário; existem em vários nomes por causa
+# do schema antigo truncado em 10 caracteres pelo DBF — mantidos aqui como
+# fallback mesmo após a padronização de 2026-09-21).
 OCULTAS_POPUP_TRECHO = {
-    'objectid', 'situacao',
+    'objectid',
     'x_long', 'y_lat', 'x_fim_long', 'y_fim_lat',
     'x_inicio', 'y_inicio', 'x_final', 'y_final', 'x_fim', 'y_fim',
     'start_x', 'start_y', 'end_x', 'end_y',
     'coord__ini', 'coord__fim', 'coord_inic', 'coord_fi_1',
-    'coord_ini', 'coord_fina',
+    'coord_ini', 'coord_fina', 'coord_fim',
 }
 
 # Situação dos trechos (códigos oficiais do SRE) -> (descrição, cor).
@@ -660,6 +675,13 @@ def exportar_dados(base_dir, camadas_dir):
         if arq == 'trechos':
             # 'Id' = número do trecho. Fica mais claro pra quem abre o
             # download no QGIS/ArcGIS/Google Earth do que um genérico 'Id'.
+            # Desde a padronização de 2026-09-21 a coluna descritiva já se
+            # chama 'TRECHO' em todas as regiões — renomeia ela pra
+            # 'DESCRICAO' primeiro, senão o rename do Id criaria duas
+            # colunas 'TRECHO' (GeoDataFrame não aceita nome duplicado).
+            col_desc = next((c for c in g.columns if str(c).lower() == 'trecho'), None)
+            if col_desc:
+                g = g.rename(columns={col_desc: 'DESCRICAO'})
             col_id = next((c for c in g.columns if str(c).lower() == 'id'), None)
             if col_id:
                 g = g.rename(columns={col_id: 'TRECHO'})
@@ -3534,13 +3556,19 @@ def create_webgis():
 
     # Completa: a tag <html> precisa do lang e translate="no" (o Chrome usa isso
     # para nem oferecer tradução). O folium gera <html> "pelado".
-    try:
-        _txt = output_file.read_text(encoding='utf-8')
-        if '<html>' in _txt:
-            _txt = _txt.replace('<html>', '<html lang="pt-BR" translate="no">', 1)
-            output_file.write_text(_txt, encoding='utf-8')
-    except Exception as e:
-        print(f"  Aviso: não ajustei a tag <html> para não-traduzir: {e}")
+    import time
+    for _tentativa in range(3):
+        try:
+            _txt = output_file.read_text(encoding='utf-8')
+            if '<html>' in _txt:
+                _txt = _txt.replace('<html>', '<html lang="pt-BR" translate="no">', 1)
+                output_file.write_text(_txt, encoding='utf-8')
+            break
+        except Exception as e:
+            if _tentativa == 2:
+                print(f"  Aviso: não ajustei a tag <html> para não-traduzir: {e}")
+            else:
+                time.sleep(0.5)  # arquivo pode estar momentaneamente bloqueado (antivírus/sync)
 
     print(f"\nMapa salvo em: {output_file}")
     print(f"Regiões: {ordem_regioes}")
