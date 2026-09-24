@@ -173,6 +173,7 @@ COR_HIDRO = '#38BDF8'   # azul-céu
 COR_LOCALIDADE = '#EC4899'  # rosa: distinto do bueiro (roxo), situações, críticos e hidro
 COR_ROD_FEDERAL = '#DC2626'  # vermelho: rodovias federais (contexto)
 COR_AEROPORTO = '#7C3AED'  # violeta: aeroportos (contexto, ícone de avião)
+COR_NOMES_ROD = '#D97706'  # âmbar: nomes das rodovias (contexto, sobre o satélite)
 
 # Rótulos do popup de Trechos: os shapefiles R1/R2/R3/R11/R12/R13 foram
 # padronizados em 2026-09-21 (mesmo nome de coluna em todas as regiões:
@@ -1454,7 +1455,7 @@ class PainelControle(MacroElement):
                     Camadas de Contexto
                 </div>
                 {% for c in this.contexto %}
-                <div class="gp-sub-item">
+                <div class="gp-sub-item"{% if c.dica %} title="{{ c.dica }}"{% endif %}>
                     <input type="checkbox" data-camada="{{ c.layer.get_name() }}" data-key="ctx~{{ c.nome }}" {% if c.ativo %}checked{% endif %}>
                     <span class="sw {{ c.forma }}" style="--c: {{ c.cor }}"></span>
                     <span class="gp-sub-lbl">{{ c.nome }}</span>
@@ -2793,6 +2794,24 @@ def create_webgis():
     m = folium.Map(location=[-15.7801, -47.9292], zoom_start=4, tiles=None,
                    max_zoom=21, zoom_control=False)
 
+    # Pane exclusivo pro nome/número da rodovia (camada de contexto "Nomes
+    # das Rodovias") ficar sempre visível por cima do traçado colorido dos
+    # trechos (que mora no overlayPane, z-index 400). Precisa existir ANTES
+    # de qualquer TileLayer que peça esse pane ser adicionada ao mapa —
+    # senão o Leaflet tenta anexar a tile a um pane inexistente e quebra o
+    # zoom do mapa inteiro (não só dessa camada).
+    class _PaneNomesRod(MacroElement):
+        _template = Template("""
+        {% macro script(this, kwargs) %}
+            (function(){
+                var p = {{ this._parent.get_name() }}.createPane('paneNomesRod');
+                p.style.zIndex = 450;
+                p.style.pointerEvents = 'none';
+            })();
+        {% endmacro %}
+        """)
+    m.add_child(_PaneNomesRod())
+
     # 1. Mapas de Fundo (o último adicionado abre por padrão -> Satélite)
     tl_padrao = folium.TileLayer('OpenStreetMap', name='Padrão', control=False,
                                  max_zoom=21, max_native_zoom=19)
@@ -3306,6 +3325,21 @@ def create_webgis():
     if 'aeroporto' in contexto:
         contexto['aeroporto']['fg'].add_to(m)
 
+    # Nomes das Rodovias (sobre o satélite): camada de referência da Esri
+    # (nome/número de rodovia + malha viária), pensada pra ficar por cima
+    # de um mapa de fundo sem texto (Satélite/Escuro) — igual ao pedido do
+    # geoportal de levantamento, mas via Esri em vez de hotlink direto nos
+    # tiles do Google (fora dos termos de uso deles fora da API oficial).
+    # Zoom nativo alto (sem capar) pra não borrar ao aproximar; vai no
+    # paneNomesRod (criado acima), acima do traçado dos trechos.
+    fg_nomes_rod = folium.FeatureGroup(name='Nomes das Rodovias', show=False, control=False)
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+        attr='Tiles &copy; Esri', max_zoom=21, max_native_zoom=19,
+        pane='paneNomesRod').add_to(fg_nomes_rod)
+    fg_nomes_rod.add_to(m)
+    contexto['nomes_rodovias'] = {'fg': fg_nomes_rod, 'count': None}
+
     def rid_key(rid):
         mm = re.match(r'R(\d+)$', rid)
         return (0, int(mm.group(1))) if mm else (1, rid)
@@ -3426,6 +3460,10 @@ def create_webgis():
         contexto_info.append({'nome': 'Aeroportos', 'layer': contexto['aeroporto']['fg'],
                               'cor': COR_AEROPORTO, 'forma': 'ponto', 'ativo': False,
                               'count': fmt(contexto['aeroporto']['count'])})
+    if 'nomes_rodovias' in contexto:
+        contexto_info.append({'nome': 'Nomes das Rodovias', 'layer': contexto['nomes_rodovias']['fg'],
+                              'cor': COR_NOMES_ROD, 'forma': 'linha', 'ativo': False,
+                              'count': '', 'dica': 'Melhor sobre o Satélite ou Escuro'})
 
     # 5. Arquivos para download (KML + Shapefile zipado)
     print("\nGerando os arquivos para download...")
