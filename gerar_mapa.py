@@ -3590,6 +3590,11 @@ def create_webgis():
         '<meta http-equiv="Content-Language" content="pt-BR">'
         '<meta name="google" content="notranslate">'), name='no_translate')
 
+    # Título e ícone da aba do navegador (mesmo padrão dos outros geoportais).
+    m.get_root().header.add_child(Element(
+        '<title>Inventário Rodoviário RTA-MSI</title>'
+        '<link rel="icon" type="image/png" href="logo/favicon.png">'), name='titulo_aba')
+
     m.save(output_file)
 
     # Completa: a tag <html> precisa do lang e translate="no" (o Chrome usa isso
