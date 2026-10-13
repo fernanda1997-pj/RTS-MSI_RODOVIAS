@@ -1479,14 +1479,14 @@ class PainelControle(MacroElement):
                                     <svg class="o-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.9"/></svg>
                                     <svg class="o-off" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 003.7 3.7M9.4 5.3A9.5 9.5 0 0112 5c6.4 0 10 7 10 7a17 17 0 01-3.2 4M6.2 6.2A17 17 0 002 12s3.6 7 10 7c1.3 0 2.4-.2 3.5-.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
                                 </span>
-                                <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" checked>
+                                <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}"{% if not it.grupo.endswith('-criticos') %} checked{% endif %}>
                             </div>
                             <div class="gp-tre-body">
                                 {% for s in it.situacoes %}
                                 <div class="gp-sit">
                                     <div class="gp-sit-head">
                                         <svg class="gp-chev3" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                        <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-sit="{{ s.codigo }}" data-camada="{{ s.layer.get_name() }}" data-key="{{ it.grupo }}~{{ s.codigo }}" checked>
+                                        <input type="checkbox" data-regiao="{{ reg.id }}" data-grupo="{{ it.grupo }}" data-sit="{{ s.codigo }}" data-camada="{{ s.layer.get_name() }}" data-key="{{ it.grupo }}~{{ s.codigo }}"{% if not it.grupo.endswith('-criticos') %} checked{% endif %}>
                                         <span class="sw linha-xs" style="--c: {{ s.cor }}"></span>
                                         <span class="gp-sit-txt">
                                             <span class="gp-sit-cod">{{ s.codigo }}</span>
@@ -1614,7 +1614,7 @@ class PainelControle(MacroElement):
                 <div class="gp-donut">
                     <svg class="gp-donut-svg" viewBox="0 0 42 42" role="img" aria-label="Composição dos pontos críticos">
                         {% for s in this.donut_criticos.segmentos %}
-                        <circle class="gp-donut-seg" data-seg="{{ s.sit }}" cx="21" cy="21" r="15.915" fill="none"
+                        <circle class="gp-donut-seg off" data-seg="{{ s.sit }}" cx="21" cy="21" r="15.915" fill="none"
                                 stroke="{{ s.cor }}" stroke-width="5.5"
                                 stroke-dasharray="{{ s.dash }} {{ s.gap }}" stroke-dashoffset="{{ s.off }}"/>
                         {% endfor %}
@@ -1623,7 +1623,7 @@ class PainelControle(MacroElement):
                     </svg>
                     <div class="gp-donut-leg">
                         {% for f in this.filtros_criticos %}
-                        <button type="button" class="gp-chip gp-chip-row on" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.count }} pontos">
+                        <button type="button" class="gp-chip gp-chip-row" data-sit="{{ f.codigo }}" style="--c: {{ f.cor }}" title="{{ f.count }} pontos">
                             <span class="gp-cr-nome">{{ f.desc }}</span><b>{{ f.pct }}%</b>
                         </button>
                         {% endfor %}
@@ -1959,6 +1959,9 @@ class PainelControle(MacroElement):
                 // Voa até um trecho (GeoJson) ou ponto crítico (marcador) e
                 // abre a ficha dele.
                 function irPara(bstr, fgNome, sre) {
+                    // camada desligada (ex.: pontos críticos, que abrem desligados): liga antes de voar
+                    var cbAlvo = document.querySelector('#gp-painel input[data-camada="' + fgNome + '"]');
+                    if (cbAlvo && !cbAlvo.checked) { cbAlvo.checked = true; cbAlvo.dispatchEvent(new Event('change', { bubbles: true })); }
                     var p = bstr.split(',').map(Number);
                     var ponto = (p[0] === p[2] && p[1] === p[3]);   // bounds degenerado = ponto
                     map.fitBounds([[p[0], p[1]], [p[2], p[3]]],
@@ -3411,7 +3414,7 @@ def create_webgis():
                     bloco = por_status[rotulo]
                     cor_pt = bloco['cor']
                     fg_st = folium.FeatureGroup(name=f'{rid}_criticos_{rotulo}',
-                                                show=True, control=False)
+                                                show=False, control=False)   # desligado por padrão: quem precisa liga
                     lista = []
                     for ponto, lat, lon, info in sorted(bloco['pontos'], key=lambda t: t[0]):
                         folium.CircleMarker(
