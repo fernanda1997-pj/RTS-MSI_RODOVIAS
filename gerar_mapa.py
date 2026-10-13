@@ -107,7 +107,29 @@ def emitir_relatorio_qualidade(base_dir):
 # --------------------------------------------------- pontos críticos
 # Planilha de controle: uma aba por região, com o status de cada ponto mês a
 # mês e o link da foto de cada mês (hospedadas no Drive, permanecem privadas).
-PLANILHA_PC = Path(__file__).parent / 'pontos criticos' / 'Controle Pontos Críticos .xlsx'
+# Fonte única dos pontos críticos: a pasta de trabalho. Se ela não existir
+# (outro computador, por exemplo), cai na planilha e nos shapes de dentro do
+# projeto, como era antes.
+PASTA_PONTOS = Path(r'C:\1. Projetos\RTA\PONTOS CRÍTICOS - ORGANIZADO')
+_PLANILHA_PASTA = PASTA_PONTOS / '00_PLANILHA' / 'Controle Pontos Críticos.xlsx'
+PLANILHA_PC = (_PLANILHA_PASTA if _PLANILHA_PASTA.exists()
+               else Path(__file__).parent / 'pontos criticos' / 'Controle Pontos Críticos .xlsx')
+
+
+def listar_shapes(camadas_dir, padrao='*.shp'):
+    """
+    Shapefiles de 'camadas', com os pontos críticos (R*_Pontos_Criticos.shp)
+    vindos de GIS\\Região NN\\Shapes\\1 - Todos os pontos (posição atual) quando
+    existirem na pasta de trabalho. Assim a edição é feita num lugar só.
+    """
+    achados = {f.name.lower(): f for f in camadas_dir.glob(padrao)}
+    pasta_gis = PASTA_PONTOS / 'GIS'
+    if pasta_gis.exists():
+        for f in pasta_gis.glob('Região *\\Shapes\\1 - Todos os pontos (posição atual)\\R*_Pontos_Criticos.shp'):
+            if Path(padrao).match(f.name) or padrao == '*.shp':
+                achados[f.name.lower()] = f
+                print(f"  Pontos críticos lidos de: {f.relative_to(PASTA_PONTOS)}")
+    return sorted(achados.values(), key=lambda p: p.name.lower())
 
 # Ordem cronológica do acompanhamento (o ciclo vai de setembro a agosto)
 MESES = ['Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Janeiro',
@@ -451,6 +473,24 @@ def _detectar_mes(cabecalho):
     return None, eh_foto
 
 
+MES_NUM = {'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4, 'Maio': 5, 'Junho': 6,
+           'Julho': 7, 'Agosto': 8, 'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12}
+
+
+def _ano_da_coluna(cabecalho, mes):
+    """Ano do cabeçalho ('Outubro/2026' -> 2026); sem ano, o do ciclo set/2025–ago/2026."""
+    achado = re.search(r'(20\d\d)', str(cabecalho or ''))
+    if achado:
+        return int(achado.group(1))
+    return 2025 if MES_NUM[mes] >= 9 else 2026
+
+
+def _rotulo_mes(h):
+    """'Out' para o ciclo 2025/26; 'Out/26' quando o mês já é do ciclo seguinte (set–dez de 2026)."""
+    r = h['mes'][:3]
+    return f"{r}/{str(h['ano'])[2:]}" if h.get('ano') == 2026 and MES_NUM[h['mes']] >= 9 else r
+
+
 def _status_pc(valor):
     """Normaliza o status ('Em execução' e 'Em Execução' são o mesmo)."""
     return STATUS_PC.get(_sem_acento(valor), STATUS_PC_OUTRO)
@@ -485,11 +525,15 @@ def carregar_controle_pontos():
         i_final = next((i for i, h in enumerate(hdr)
                         if h and ('status final' in _sem_acento(h)
                                   or 'situacao atual' in _sem_acento(h))), None)
+        # Chave da coluna = (ano, mês). O cabeçalho pode trazer o ano
+        # ('Outubro/2026'); sem ano, vale o ciclo de acompanhamento que começa
+        # em setembro de 2025 (set–dez = 2025, jan–ago = 2026). Sem o ano,
+        # 'Outubro/2025' e 'Outubro/2026' colidiriam e o mais novo apagaria o antigo.
         col_status, col_foto = {}, {}
         for i, h in enumerate(hdr):
             mes, eh_foto = _detectar_mes(h)
             if mes:
-                (col_foto if eh_foto else col_status)[mes] = i
+                (col_foto if eh_foto else col_status)[(_ano_da_coluna(h, mes), mes)] = i
 
         for row in ws.iter_rows(min_row=2):
             if not row[0].value:
@@ -499,13 +543,15 @@ def carregar_controle_pontos():
             except (TypeError, ValueError):
                 continue
             historico = []
-            for mes in MESES:
-                i_s, i_f = col_status.get(mes), col_foto.get(mes)
+            # Ordem cronológica real (ano, mês do calendário), não a ordem do ciclo
+            for ano, mes in sorted(set(col_status) | set(col_foto),
+                                   key=lambda k: (k[0], MES_NUM[k[1]])):
+                i_s, i_f = col_status.get((ano, mes)), col_foto.get((ano, mes))
                 st = row[i_s].value if i_s is not None else None
                 st = str(st).strip() if st and str(st).strip() not in ('·', '', '-') else None
                 foto = row[i_f].hyperlink.target if (i_f is not None and row[i_f].hyperlink) else None
                 if st or foto:
-                    historico.append({'mes': mes, 'status': st, 'foto': foto})
+                    historico.append({'mes': mes, 'ano': ano, 'status': st, 'foto': foto})
             dados[(rid, ponto)] = {
                 'rodovia': row[1].value,
                 'trecho': row[2].value,
@@ -515,6 +561,62 @@ def carregar_controle_pontos():
     print(f"Planilha de controle: {len(dados)} pontos, "
           f"{sum(1 for d in dados.values() for h in d['historico'] if h['foto'])} fotos.")
     return dados
+
+
+def gravar_status_nos_shapes(controle):
+    """
+    Reescreve a coluna STATUS dos R*_Pontos_Criticos.shp da pasta de trabalho
+    (GIS\\Região NN\\Shapes\\1 - Todos os pontos) com o mesmo status que o
+    geoportal mostra. Assim planilha, shape e site ficam iguais a cada geração.
+    Só mexe na tabela (.dbf); a geometria é copiada sem alteração. Se o shape
+    estiver aberto no ArcMap e não der para gravar, avisa e segue.
+    """
+    pasta_gis = PASTA_PONTOS / 'GIS'
+    if not controle or not pasta_gis.exists():
+        return
+    try:
+        import shapefile  # pyshp
+    except ImportError:
+        print("Aviso: pyshp não instalado (pip install pyshp); coluna STATUS dos shapes não atualizada.")
+        return
+    import shutil
+    import tempfile
+    for shp in sorted(pasta_gis.glob('Região *\\Shapes\\1 - Todos os pontos (posição atual)\\R*_Pontos_Criticos.shp')):
+        rid = shp.stem.split('_')[0].upper()
+        base = shp.with_suffix('')
+        cpg = base.with_suffix('.cpg')
+        enc = cpg.read_text().strip() if cpg.exists() else 'cp1252'
+        try:
+            r = shapefile.Reader(str(shp), encoding=enc)
+            campos = [f for f in r.fields[1:] if f[0].upper() != 'STATUS']
+            mudou, contagem = 0, {}
+            with tempfile.TemporaryDirectory() as tmp:
+                destino = Path(tmp) / base.name
+                w = shapefile.Writer(str(destino), shapeType=r.shapeType, encoding=enc)
+                for f in campos:
+                    w.field(*f)
+                w.field('STATUS', 'C', 20)
+                for sr in r.iterShapeRecords():
+                    rec = sr.record.as_dict()
+                    try:
+                        info = controle.get((rid, int(rec.get('Id'))))
+                    except (TypeError, ValueError):
+                        info = None
+                    novo = _status_pc(status_atual(info))[0] if info else STATUS_PC_OUTRO[0]
+                    if str(rec.get('STATUS') or '').strip() != novo:
+                        mudou += 1
+                    contagem[novo] = contagem.get(novo, 0) + 1
+                    w.shape(sr.shape)
+                    w.record(*[rec[f[0]] for f in campos], novo)
+                w.close()
+                r.close()
+                if mudou:
+                    for ext in ('.shp', '.shx', '.dbf'):
+                        shutil.copyfile(destino.with_suffix(ext), base.with_suffix(ext))
+            resumo = ', '.join(f'{k} {v}' for k, v in sorted(contagem.items()))
+            print(f"  STATUS em {shp.name}: {mudou} ponto(s) atualizado(s) ({resumo})")
+        except Exception as e:
+            print(f"  Aviso: não gravei o STATUS em {shp.name} (aberto no ArcMap?): {e}")
 
 
 def status_atual(info):
@@ -550,7 +652,7 @@ def ficha_ponto_critico(rid, ponto, info):
             foto = (f'<a class="pc-foto" href="{e(h["foto"])}" target="_blank" '
                     f'rel="noopener">Ver mapa</a>') if h['foto'] else '<span class="pc-nofoto">—</span>'
             partes.append(
-                f'<div class="pc-linha"><span class="pc-mes">{e(h["mes"][:3])}</span>'
+                f'<div class="pc-linha"><span class="pc-mes">{e(_rotulo_mes(h))}</span>'
                 f'<span class="pc-st" style="color:{c_h}">{e(r_h)}</span>{foto}</div>')
         partes.append('</div>')
 
@@ -638,7 +740,7 @@ def exportar_dados(base_dir, camadas_dir):
 
     for arq, padrao, rotulo in EXPORT_CAMADAS:
         partes = []
-        for f in sorted(camadas_dir.glob(padrao)):
+        for f in listar_shapes(camadas_dir, padrao):
             try:
                 g = gpd.read_file(f)
                 if g.crs and g.crs.to_string() != 'EPSG:4326':
@@ -1098,7 +1200,7 @@ class PainelControle(MacroElement):
             .pc-sub { font-size:10.5px; color:#64748b; padding:6px 0 2px; line-height:1.35; }
             .pc-hist { margin:6px 0 0; border-top:1px solid #f1f5f9; padding-top:5px; }
             .pc-linha { display:flex; align-items:center; gap:8px; padding:2.5px 0; font-size:11px; }
-            .pc-mes { width:26px; flex:0 0 auto; font-weight:700; color:#94a3b8; font-size:9.5px;
+            .pc-mes { width:34px; flex:0 0 auto; font-weight:700; color:#94a3b8; font-size:9.5px;
                 text-transform:uppercase; letter-spacing:0.04em; }
             .pc-st { flex:1; font-weight:600; font-size:10.5px; }
             .pc-foto { font-size:9.5px; font-weight:600; color:#1E3A72; text-decoration:none;
@@ -2828,6 +2930,7 @@ def create_webgis():
 
     # 2. Ler shapefiles
     controle = carregar_controle_pontos()
+    gravar_status_nos_shapes(controle)
     regioes = {}
     contexto = {}
     bounds = []
@@ -2844,7 +2947,7 @@ def create_webgis():
     # exemplo, viria antes de qualquer R*_REGIÃO nessa ordem).
     regioes_geom = None
     _partes_regiao = []
-    for _shp in sorted(camadas_dir.glob('*.shp')):
+    for _shp in sorted(camadas_dir.glob('*.shp')):   # só lê R*_REGIÃO; PC não entra aqui
         if classificar(_shp.stem) != 'regiao':
             continue
         try:
@@ -2863,7 +2966,7 @@ def create_webgis():
         print(f"  Contorno das regiões de trabalho: {len(_partes_regiao)} região(ões) unidas "
               f"(+ margem de 2 km) — usado pra recortar as camadas de contexto.")
 
-    for shp_file in sorted(camadas_dir.glob('*.shp')):
+    for shp_file in listar_shapes(camadas_dir):
         nome = shp_file.stem
         tipo = classificar(nome)
 
