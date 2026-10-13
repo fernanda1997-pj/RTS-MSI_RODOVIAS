@@ -1336,6 +1336,9 @@ class PainelControle(MacroElement):
             #gp-coord-panel .gp-cp-limpar { background:#fef2f2; color:#b91c1c; }
             #gp-coord-panel .gp-cp-bt:hover { filter:brightness(1.06); }
             #gp-coord-panel .gp-cp-dica { font-size:9.5px; color:#94a3b8; margin-top:9px; line-height:1.45; }
+            #gp-coord-panel select { width:100%; box-sizing:border-box; height:30px; padding:0 8px; margin-top:6px;
+                border:1px solid #cbd5e1; border-radius:8px; font-size:11.5px; color:#334155; background:#fff; }
+            #gp-coord-panel .gp-cp-erro { display:none; font-size:10.5px; color:#dc2626; margin-top:5px; line-height:1.35; }
             .gp-cp-marcando, .gp-cp-marcando .leaflet-interactive { cursor:crosshair !important; }
             @media (max-width:640px){ #gp-coord-panel { right:52px; width:min(248px, calc(100vw - 66px)); } }
 
@@ -2213,7 +2216,7 @@ class PainelControle(MacroElement):
                 var ICON_LINK = '<svg viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.07 0l2-2a5 5 0 00-7.07-7.07l-1.1 1.1M14 11a5 5 0 00-7.07 0l-2 2a5 5 0 007.07 7.07l1.1-1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 var ICON_OK = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 var ICON_CAM = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>';
-                var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg>';
+                var ICON_PIN = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 7v6M9 10h6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
 
                 // -- Overlay de carregamento: some quando o mapa fica pronto --
                 var loadEl = document.getElementById('gp-loading');
@@ -2278,11 +2281,110 @@ class PainelControle(MacroElement):
                             .catch(function(){ cb(''); });
                     } catch(e){ cb(''); }
                 }
+                // Coordenada em outros formatos (graus/min/seg e UTM) pro popup do ponto
+                function dmsStr(v, pos, neg){
+                    var h = v >= 0 ? pos : neg; v = Math.abs(v);
+                    var g = Math.floor(v), mf = (v - g) * 60, m = Math.floor(mf), sg = (mf - m) * 60;
+                    if (sg >= 59.995) { sg = 0; m += 1; }
+                    if (m >= 60) { m = 0; g += 1; }
+                    return g + '°' + (m < 10 ? '0' : '') + m + "'" + (sg < 10 ? '0' : '') + sg.toFixed(2) + '"' + h;
+                }
+                function utmStr(lat, lng){
+                    if (!window.proj4) return '';
+                    try {
+                        var z = Math.floor((lng + 180) / 6) + 1;
+                        var r = proj4('EPSG:4326', '+proj=utm +zone=' + z + (lat < 0 ? ' +south' : '') + ' +datum=WGS84 +units=m +no_defs', [lng, lat]);
+                        return 'UTM ' + z + (lat < 0 ? 'S' : 'N') + ': E ' + Math.round(r[0]) + ' · N ' + Math.round(r[1]);
+                    } catch(e) { return ''; }
+                }
                 function popupPonto(lat, lng, local){
+                    var la = parseFloat(lat), ln = parseFloat(lng);
+                    var utm = utmStr(la, ln);
                     return '<div style="font-family:Inter,-apple-system,sans-serif;font-size:12px;line-height:1.5">'
                         + '<b style="color:#1E3A72">Ponto temporário</b><br>Lat: '+lat+'<br>Long: '+lng
+                        + '<br><span style="color:#64748b;font-size:11px">' + dmsStr(la,'N','S') + ' ' + dmsStr(ln,'L','O') + '</span>'
+                        + (utm ? '<br><span style="color:#64748b;font-size:11px">' + utm + '</span>' : '')
                         + (local===undefined ? '<br><i style="color:#94a3b8">buscando município…</i>' : (local?('<br>📍 '+local):''))
                         + '</div>';
+                }
+
+                // Lê a coordenada digitada em vários formatos:
+                //   decimal       -7.170, -48.530   (aceita vírgula decimal e o símbolo °)
+                //   graus/min/seg 7°10'12.5"S 48°31'48"W  (também 7 10 12 S 48 31 48 W, com N/S/L/O/E/W)
+                //   UTM           22S 805000 8750000  /  UTM 23S E 189000 N 8800000  /  805000 8750000
+                // Devolve {lat,lng}, ou {utm:{e,n,zona,sul}} (precisa do proj4 pra converter), ou null.
+                function parseCoordenada(txt){
+                    var s = String(txt || '').trim().replace(/[\u2212\u2013\u2014]/g, '-')
+                        .replace(/[′’‘`´]/g, "'").replace(/[″”“]/g, '"').replace(/[º˚]/g, '°');
+                    if (!s) return null;
+                    function num(x){ return parseFloat(String(x).replace(',', '.')); }
+
+                    // 1) UTM: dois números grandes (leste e norte)
+                    var grandes = s.match(/\d{5,8}(?:[.,]\d+)?/g);
+                    if (grandes && grandes.length >= 2) {
+                        var t = s.replace(/utm|zona|fuso|zone|sirgas ?2000|wgs ?84|datum|metros/ig, ' ');
+                        var zona = null, sul = true;
+                        var mz = t.match(/(^|[^0-9.,])(\d{1,2})\s*([A-Za-z])?\s+(?=[A-Za-z]?\s*[:=]?\s*\d{5})/);
+                        if (mz) {
+                            zona = parseInt(mz[2], 10);
+                            var banda = (mz[3] || '').toUpperCase();
+                            // convenção brasileira: 22S/23S = fuso Sul; N e P–X = hemisfério norte
+                            if (banda === 'N' || (banda >= 'P' && banda <= 'X' && banda !== 'S')) sul = false;
+                            t = t.replace(mz[0], mz[1] + ' ');
+                        }
+                        var re = /([A-Za-z])?\s*[:=]?\s*(\d{5,8}(?:[.,]\d+)?)/g, mm, vals = [];
+                        while ((mm = re.exec(t)) !== null) vals.push({ r: (mm[1] || '').toUpperCase(), v: num(mm[2]) });
+                        if (vals.length >= 2) {
+                            var a = vals[0], b = vals[1];
+                            var e = a.v, n = b.v;
+                            if (a.r === 'N' && (b.r === 'E' || b.r === 'L')) { e = b.v; n = a.v; }
+                            if (e < 100000 || e > 1000000 || n < 0 || n > 10000000) return null;
+                            if (zona !== null && (zona < 1 || zona > 60)) return null;
+                            return { utm: { e: e, n: n, zona: zona, sul: sul } };
+                        }
+                    }
+
+                    // 2) decimal puro: dois números (opcionalmente com °)
+                    var md = s.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*[, ;]\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*$/);
+                    if (md) return { lat: num(md[1]), lng: num(md[2]) };
+
+                    // 3) graus/minutos/segundos (ou decimal com letra N/S/L/O/E/W)
+                    var rg = /([NSEWLO])?\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*(?:(\d+(?:[.,]\d+)?)\s*'?\s*)?(?:(\d+(?:[.,]\d+)?)\s*"?\s*)?([NSEWLO])?/gi;
+                    var grupos = [], g;
+                    while ((g = rg.exec(s)) !== null) {
+                        if (g[0].trim() === '') { rg.lastIndex++; continue; }
+                        var letra = ((g[1] || g[5]) || '').toUpperCase();
+                        var deg = num(g[2]), mi = g[3] ? num(g[3]) : 0, se = g[4] ? num(g[4]) : 0;
+                        if (!isFinite(deg) || mi >= 60 || se >= 60) return null;
+                        var val = Math.abs(deg) + mi / 60 + se / 3600;
+                        if (deg < 0 || letra === 'S' || letra === 'W' || letra === 'O') val = -val;
+                        grupos.push({ v: val, eixo: (letra === 'N' || letra === 'S') ? 'lat' : (letra ? 'lng' : null) });
+                    }
+                    if (grupos.length !== 2) return null;
+                    var g1 = grupos[0], g2 = grupos[1];
+                    if (g1.eixo === 'lng' || g2.eixo === 'lat') { var tmp = g1; g1 = g2; g2 = tmp; }
+                    if ((g1.eixo && g1.eixo !== 'lat') || (g2.eixo && g2.eixo !== 'lng')) return null;
+                    return { lat: g1.v, lng: g2.v };
+                }
+
+                // UTM -> lat/long (SIRGAS 2000 ≈ WGS84). Sem fuso no texto: usa o escolhido no painel;
+                // em "Auto" testa 22 e 23 e fica com o que cai no Tocantins (senão, pelo centro do mapa).
+                function utmParaLatLng(u, fusoPref, cb){
+                    carregarScriptImg('https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js', 'proj4').then(function(){
+                        function conv(z){
+                            var r = proj4('+proj=utm +zone=' + z + (u.sul ? ' +south' : '') + ' +datum=WGS84 +units=m +no_defs', 'EPSG:4326', [u.e, u.n]);
+                            return { lat: r[1], lng: r[0] };
+                        }
+                        function dentro(q){ return q.lat > -14.5 && q.lat < -4.5 && q.lng > -51.8 && q.lng < -45; }
+                        var z = u.zona || ((fusoPref && fusoPref !== 'auto') ? parseInt(fusoPref, 10) : null);
+                        var res;
+                        if (z) res = conv(z);
+                        else {
+                            var a = conv(22), b = conv(23);
+                            res = (dentro(a) && !dentro(b)) ? a : ((dentro(b) && !dentro(a)) ? b : (map.getCenter().lng < -48 ? a : b));
+                        }
+                        cb(res);
+                    }).catch(function(){ cb(null); });
                 }
                 function soltarPonto(latlng){
                     var lat=(+latlng.lat).toFixed(6), lng=(+latlng.lng).toFixed(6);
@@ -2296,24 +2398,38 @@ class PainelControle(MacroElement):
                         var p=document.createElement('div'); p.id='gp-coord-panel'; p.className='gp-nao-exportar';
                         p.innerHTML =
                             '<h4>Ponto / Coordenada <span class="gp-cp-x" title="Fechar">&times;</span></h4>'+
-                            '<label>Ir até coordenada (lat, long)</label>'+
-                            '<input type="text" class="gp-cp-inp" placeholder="-7.170, -48.530">'+
+                            '<label>Ir até coordenada</label>'+
+                            '<input type="text" class="gp-cp-inp" placeholder="-7.170, -48.530" autocomplete="off">'+
+                            '<select class="gp-cp-fuso" title="Fuso UTM (só vale pra UTM sem o fuso escrito)">'+
+                                '<option value="auto">UTM: fuso automático</option>'+
+                                '<option value="22">UTM: fuso 22 Sul</option>'+
+                                '<option value="23">UTM: fuso 23 Sul</option></select>'+
+                            '<div class="gp-cp-erro"></div>'+
                             '<div class="gp-cp-row"><button type="button" class="gp-cp-bt gp-cp-ir">Ir e marcar</button></div>'+
                             '<div class="gp-cp-row"><button type="button" class="gp-cp-bt gp-cp-marcar">Marcar clicando no mapa</button></div>'+
                             '<div class="gp-cp-row"><button type="button" class="gp-cp-bt gp-cp-limpar">Limpar pontos</button></div>'+
-                            '<div class="gp-cp-dica">Clique em "Marcar clicando" e toque no mapa pra soltar um pino. O popup mostra a coordenada e o município.</div>';
+                            '<div class="gp-cp-dica">Aceita: <b>-7.170, -48.530</b> · <b>7°10\\'12"S 48°31\\'48"W</b> · UTM <b>22S 805000 8750000</b>.<br>Ou clique em "Marcar clicando" e toque no mapa. O popup mostra a coordenada (decimal, graus e UTM) e o município.</div>';
                         map.getContainer().appendChild(p);
                         L.DomEvent.disableClickPropagation(p); L.DomEvent.disableScrollPropagation(p);
                         var inp=p.querySelector('.gp-cp-inp'), btMarcar=p.querySelector('.gp-cp-marcar');
                         p.querySelector('.gp-cp-x').addEventListener('click', function(){ p.classList.remove('aberto'); });
+                        var selFuso=p.querySelector('.gp-cp-fuso'), msgErro=p.querySelector('.gp-cp-erro');
+                        function erroCoord(t){ inp.style.borderColor='#dc2626'; msgErro.textContent=t; msgErro.style.display='block'; }
                         function irCoord(){
-                            var v=inp.value.trim();
-                            var m=v.match(/(-?\d+(?:[.,]\d+)?)\s*[, ;]\s*(-?\d+(?:[.,]\d+)?)/);
-                            if(!m){ inp.style.borderColor='#dc2626'; return; }
-                            var la=parseFloat(m[1].replace(',','.')), ln=parseFloat(m[2].replace(',','.'));
-                            if(!isFinite(la)||!isFinite(ln)||la<-90||la>90||ln<-180||ln>180){ inp.style.borderColor='#dc2626'; return; }
-                            inp.style.borderColor=''; var ll=L.latLng(la,ln);
-                            map.flyTo(ll, Math.max(map.getZoom(),14)); soltarPonto(ll);
+                            function ir(la, ln){
+                                if(!isFinite(la)||!isFinite(ln)||la<-90||la>90||ln<-180||ln>180){ erroCoord('Coordenada fora dos limites.'); return; }
+                                inp.style.borderColor=''; msgErro.style.display='none';
+                                var ll=L.latLng(la,ln);
+                                map.flyTo(ll, Math.max(map.getZoom(),14)); soltarPonto(ll);
+                            }
+                            var r=parseCoordenada(inp.value);
+                            if(!r){ erroCoord('Formato não reconhecido. Veja os exemplos abaixo.'); return; }
+                            if(r.utm){
+                                utmParaLatLng(r.utm, selFuso.value, function(res){
+                                    if(!res){ erroCoord('Não consegui converter o UTM (sem internet?).'); return; }
+                                    ir(res.lat, res.lng);
+                                });
+                            } else ir(r.lat, r.lng);
                         }
                         p.querySelector('.gp-cp-ir').addEventListener('click', irCoord);
                         inp.addEventListener('keydown', function(e){ if(e.key==='Enter') irCoord(); });
@@ -2326,6 +2442,7 @@ class PainelControle(MacroElement):
                         painelCoord=p;
                     }
                     painelCoord.classList.toggle('aberto');
+                    carregarScriptImg('https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js', 'proj4').catch(function(){});
                 }
                 map.on('click', function(e){ if (marcandoModo) soltarPonto(e.latlng); });
 
@@ -3482,6 +3599,7 @@ def create_webgis():
                    completed_color='#DC2626').add_to(m)
     # GPS: botão "minha localização" (canto direito). Precisa de HTTPS (o site já é).
     LocateControl(position='topright', flyTo=True, keepCurrentZoomLevel=False,
+                  icon='fa fa-crosshairs',   # mira de GPS (o padrão fa-map-marker era um pino, igual ao do botão de ponto)
                   strings={'title': 'Mostrar minha localização',
                            'popup': 'Você está aqui (precisão de ~{distance} {unit})'},
                   locateOptions={'enableHighAccuracy': True, 'maxZoom': 16}).add_to(m)
