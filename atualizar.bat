@@ -94,8 +94,14 @@ if "%MSG%"=="" set "MSG=Atualiza mapa - %DATE%"
 
 echo.
 echo  Enviando...
-git add -A
+rem So publica o que o site usa. Antes era "git add -A", que levava para o
+rem site publico qualquer coisa solta na pasta (planilhas, .mxd, configs).
+git add -- mapa_interativo.html gerar_mapa.py dados camadas "camadas contexto" logo vercel.json atualizar.bat
 if errorlevel 1 goto :erro_git
+echo.
+echo  Ficaram de fora (NAO publicados - se precisar de algum, me avise):
+git status --short --untracked-files=normal
+echo.
 
 git commit -m "%MSG%"
 if errorlevel 1 goto :nada_mudou
