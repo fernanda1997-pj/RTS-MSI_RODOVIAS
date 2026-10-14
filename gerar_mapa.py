@@ -110,7 +110,19 @@ def emitir_relatorio_qualidade(base_dir):
 # Fonte única dos pontos críticos: a pasta de trabalho. Se ela não existir
 # (outro computador, por exemplo), cai na planilha e nos shapes de dentro do
 # projeto, como era antes.
-PASTA_PONTOS = Path(r'C:\1. Projetos\RTA\PONTOS CRÍTICOS - ORGANIZADO')
+def _achar_pasta_pontos():
+    """A pasta de trabalho dos pontos críticos é a que tem 00_PLANILHA e LAYOUTS (o nome pode mudar)."""
+    base = Path(r'C:\1. Projetos\RTA')
+    try:
+        for d in sorted(base.iterdir()):
+            if d.is_dir() and (d / '00_PLANILHA').is_dir() and (d / 'LAYOUTS').is_dir():
+                return d
+    except OSError:
+        pass
+    return base / 'PONTOS CRÍTICOS - ORGANIZADO'
+
+
+PASTA_PONTOS = _achar_pasta_pontos()
 _PLANILHA_PASTA = PASTA_PONTOS / '00_PLANILHA' / 'Controle Pontos Críticos.xlsx'
 PLANILHA_PC = (_PLANILHA_PASTA if _PLANILHA_PASTA.exists()
                else Path(__file__).parent / 'pontos criticos' / 'Controle Pontos Críticos .xlsx')
@@ -2318,7 +2330,7 @@ class PainelControle(MacroElement):
                 // Devolve {lat,lng}, ou {utm:{e,n,zona,sul}} (precisa do proj4 pra converter), ou null.
                 function parseCoordenada(txt){
                     var s = String(txt || '').trim().replace(/[\u2212\u2013\u2014]/g, '-')
-                        .replace(/[′’‘`´]/g, "'").replace(/[″”“]/g, '"').replace(/[º˚]/g, '°');
+                        .replace(/[′’‘`´]/g, "'").replace(/[″”“]/g, '"').replace(/[º˚]/g, '°').replace(/''/g, '"');
                     if (!s) return null;
                     function num(x){ return parseFloat(String(x).replace(',', '.')); }
 
