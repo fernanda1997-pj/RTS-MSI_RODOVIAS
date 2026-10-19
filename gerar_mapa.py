@@ -2334,8 +2334,16 @@ class PainelControle(MacroElement):
                     if (!s) return null;
                     function num(x){ return parseFloat(String(x).replace(',', '.')); }
 
-                    // 1) UTM: dois números grandes (leste e norte)
-                    var grandes = s.match(/\d{5,8}(?:[.,]\d+)?/g);
+                    // 1) decimal puro: dois números (opcionalmente com °) dentro dos limites de lat/long.
+                    //    Vem antes do UTM: em -7.84739 as casas decimais (84739) pareciam um número UTM.
+                    var md = s.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*[, ;]\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*$/);
+                    if (md) {
+                        var la = num(md[1]), ln = num(md[2]);
+                        if (Math.abs(la) <= 90 && Math.abs(ln) <= 180) return { lat: la, lng: ln };
+                    }
+
+                    // 2) UTM: dois números grandes (leste e norte); casas decimais não contam como número grande
+                    var grandes = s.replace(/\.\d+/g, '').match(/\d{5,8}/g);
                     if (grandes && grandes.length >= 2) {
                         var t = s.replace(/utm|zona|fuso|zone|sirgas ?2000|wgs ?84|datum|metros/ig, ' ');
                         var zona = null, sul = true;
@@ -2358,10 +2366,6 @@ class PainelControle(MacroElement):
                             return { utm: { e: e, n: n, zona: zona, sul: sul } };
                         }
                     }
-
-                    // 2) decimal puro: dois números (opcionalmente com °)
-                    var md = s.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*[, ;]\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*$/);
-                    if (md) return { lat: num(md[1]), lng: num(md[2]) };
 
                     // 3) graus/minutos/segundos (ou decimal com letra N/S/L/O/E/W)
                     var rg = /([NSEWLO])?\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*(?:(\d+(?:[.,]\d+)?)\s*'?\s*)?(?:(\d+(?:[.,]\d+)?)\s*"?\s*)?([NSEWLO])?/gi;
