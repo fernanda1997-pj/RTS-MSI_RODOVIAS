@@ -3719,9 +3719,9 @@ def create_webgis():
     logo_uri = carregar_logo(logo_rta) if logo_rta.exists() else None
 
     # 2ª logo (MSI): arquivo com 'MSI' no nome; senão, qualquer imagem da pasta
-    # que não seja a RTA (aceita o nome do WhatsApp).
+    # que não seja a RTA nem o favicon (aceita o nome do WhatsApp).
     outras = [p for p in sorted(logo_dir.glob('*'))
-              if p.is_file() and p.name != 'LOGO RTA.png'
+              if p.is_file() and p.name not in ('LOGO RTA.png', 'favicon.png')
               and p.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp')]
     msi = next((p for p in outras if 'msi' in p.name.lower()), outras[0] if outras else None)
     logo2_uri = carregar_logo(msi) if msi else None
