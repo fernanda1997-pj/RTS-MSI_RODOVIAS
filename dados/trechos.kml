@@ -11385,7 +11385,7 @@
 		<SimpleData name="RODOVIA">TO-427</SimpleData>
 		<SimpleData name="SEGMENTO">ENTR. TO-226 - INÍCIO PAVIMENTAÇÃO(PU PAU DARCO)</SimpleData>
 		<SimpleData name="REGIAO">R2</SimpleData>
-		<SimpleData name="SITUACAO">PPS</SimpleData>
+		<SimpleData name="SITUACAO">LEN</SimpleData>
 		<SimpleData name="CIDADE_SED">ARAGUAÍNA I</SimpleData>
 		<SimpleData name="X_INICIO">-49.363115</SimpleData>
 		<SimpleData name="Y_INICIO">-7.535717</SimpleData>
@@ -11406,7 +11406,7 @@
 		<SimpleData name="RODOVIA">TO-427</SimpleData>
 		<SimpleData name="SEGMENTO">INÍCIO PAVIMENTAÇÃO(PU PAU DARCO) - ENTR. TO-230(PU PAU DARCO)</SimpleData>
 		<SimpleData name="REGIAO">R2</SimpleData>
-		<SimpleData name="SITUACAO">PSU</SimpleData>
+		<SimpleData name="SITUACAO">LEN</SimpleData>
 		<SimpleData name="CIDADE_SED">ARAGUAÍNA I</SimpleData>
 		<SimpleData name="X_INICIO">-49.363115</SimpleData>
 		<SimpleData name="Y_INICIO">-7.535717</SimpleData>
